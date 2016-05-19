@@ -69,6 +69,11 @@ namespace body_robot
         private int speed = 0;
 
         /// <summary>
+        /// 存放position数组的list
+        /// </summary>
+        private System.Collections.Generic.List<int[]> positions;
+
+        /// <summary>
         /// 画刷
         /// </summary>
         //private readonly Brush[] brushes;
@@ -98,6 +103,7 @@ namespace body_robot
             ToAngle = new angle();
             joints = new Joint[Body.JointCount];
             position = new int[Constants.POSITION_LENTH];
+            positions = new List<int[]>();
             this.sensor = KinectSensor.GetDefault();
             // Torso躯干
             this.bones.Add(new Tuple<JointType, JointType>(JointType.Head, JointType.Neck));
@@ -200,8 +206,6 @@ namespace body_robot
             sw.Start();                     //开始计时器
             if (wifi.finish)    //待wifi初始化完成再进行数据处理
             {
-                if (speed++ == 30)             //数据帧处理速度控制，每对应帧过后处理一次，kinect数据帧获取速度约为30fps，为了和传输模块同步可修改此数值进行数据发送速度调整
-                {
                     int[] position_pre = new int[Constants.POSITION_LENTH];   //新建PWM数组
                     speed = 0;                          //重置速度控制
                     using (BodyFrame b = e.FrameReference.AcquireFrame())   //获取body数据帧，using会在括号结束后自动销毁申请的数据结构
@@ -284,9 +288,6 @@ namespace body_robot
                                         }
                                         diff = Math.Abs(position[i] - position_pre[i]);//计算本帧舵机PWM值和上帧的差值
 
-                                        //if (diff > 50) 
-                                        //return;
-
                                         if (diff > 5)//若无任何舵机变化值大于5则不发送
                                             difference = false;
                                     }
@@ -296,6 +297,17 @@ namespace body_robot
                                             return;
                                     }
                                     position = position_pre;
+                                    if(speed < Constants.frame_count)
+                                    {
+                                        positions.Add(position);
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        speed = 0;
+                                        positions.Add(position);
+                                        position = filter_position(positions);
+                                    }
                                     position[Constants.POSITION_LENTH - 1] = 0;
                                     if (difference == true)
                                     {
@@ -361,12 +373,34 @@ namespace body_robot
                             }
 
                         }
-                        #endregion
-                    }
+                        #endregion                   
                 }
 
             }
             //Console.WriteLine("time:" + sw.Elapsed);
+        }
+
+        /// <summary>
+        /// 舵机数据帧 算术平均滤波
+        /// </summary>
+        /// <param name="positions">舵机PWM数组list</param>
+        /// <returns>滤波后的舵机PWM数组</returns>
+        private int[] filter_position(List<int[]> positions)
+        {
+            int i, count = positions[0].Length;
+            int[] s = new int[count];
+            foreach(var p in positions)
+            {
+                for(i = 0;i < count;i++)
+                {
+                    s[i] += p[i];
+                }
+            }
+            for (i = 0; i < count; i++)
+            {
+                s[i] = s[i] / positions.Count;
+            }
+            return s;
         }
 
         /// <summary>

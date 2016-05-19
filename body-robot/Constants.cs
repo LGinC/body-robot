@@ -48,6 +48,14 @@ namespace body_robot
         /// </summary>
         public const int HipRight_threshold = 105;//   <
 
+        /// <summary>
+        /// 机器人初始PWM
+        /// </summary>
         public const string init_PWM = "sb115006122133244128229023130000114000231153028103000";
+
+        /// <summary>
+        /// 发送每一帧由frame_count帧数据过滤而得
+        /// </summary>
+        public const int frame_count = 5;
     }
 }

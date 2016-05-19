@@ -5,7 +5,9 @@ using System.Threading.Tasks;
 
 namespace body_robot
 {
-
+    /// <summary>
+    /// ESP8266无线模块对象
+    /// </summary>
     class ESP8266
     {
         #region 成员变量定义

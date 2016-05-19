@@ -48,6 +48,6 @@ namespace body_robot
         /// </summary>
         public const int HipRight_threshold = 105;//   <
 
-        public const string init_PWM = "sb114006122140244128228022123000130000232141009113000";
+        public const string init_PWM = "sb115006122133244128229023130000114000231153028103000";
     }
 }

@@ -200,7 +200,7 @@ namespace body_robot
             sw.Start();                     //开始计时器
             if (wifi.finish)    //待wifi初始化完成再进行数据处理
             {
-                if (speed++ == 2)             //数据帧处理速度控制，每对应帧过后处理一次，kinect数据帧获取速度约为30fps，为了和传输模块同步可修改此数值进行数据发送速度调整
+                if (speed++ == 30)             //数据帧处理速度控制，每对应帧过后处理一次，kinect数据帧获取速度约为30fps，为了和传输模块同步可修改此数值进行数据发送速度调整
                 {
                     int[] position_pre = new int[Constants.POSITION_LENTH];   //新建PWM数组
                     speed = 0;                          //重置速度控制
@@ -220,12 +220,13 @@ namespace body_robot
                     foreach (var item in body)  //遍历每个body
                     {
 
-                        #region 关节角度计算        
-                        if (item.JointOrientations[JointType.Head].Orientation.Z < 1.5) //Z轴距离大于2不处理
+                        #region 关节角度计算 
+                        if (item.IsTracked)    //body处于被追踪状态时处理
                         {
-
-                            if (item.IsTracked)    //body处于被追踪状态时处理
+                            if (item.JointOrientations[JointType.Head].Orientation.Z < 2) //Z轴距离大于2不处理
                             {
+
+
                                 if (TrackID == 9)
                                 {
                                     Console.WriteLine("tracking ID:" + TrackID.ToString());
@@ -268,7 +269,7 @@ namespace body_robot
                                     int diff = 0;
                                     for (int i = 0; i < Constants.POSITION_LENTH; i++)
                                     {
-                                        switch(position_pre[i])
+                                        switch (position_pre[i])
                                         {
                                             case 0:
                                                 if (i != (int)angle.servos.FootLeft && i != (int)angle.servos.FootRight && i != (int)angle.servos.Head && i != Constants.POSITION_LENTH - 1)
@@ -277,15 +278,15 @@ namespace body_robot
                                                 }
                                                 break;
                                             case (int)Constants.INVALID_JOINT_VALUE:
-                                                    return;//有舵机值异常，数据帧丢弃   
+                                                return;//有舵机值异常，数据帧丢弃   
                                             default:
-                                                break;                                            
+                                                break;
                                         }
                                         diff = Math.Abs(position[i] - position_pre[i]);//计算本帧舵机PWM值和上帧的差值
-                                    
+
                                         //if (diff > 50) 
-                                            //return;
-                                        
+                                        //return;
+
                                         if (diff > 5)//若无任何舵机变化值大于5则不发送
                                             difference = false;
                                     }
@@ -293,7 +294,7 @@ namespace body_robot
                                     {
                                         if (diff > 40)//变化值大于40说明计算异常，数据帧丢弃
                                             return;
-                                    }                                
+                                    }
                                     position = position_pre;
                                     position[Constants.POSITION_LENTH - 1] = 0;
                                     if (difference == true)

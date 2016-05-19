@@ -72,7 +72,7 @@ namespace body_robot
                 u.Send("AT+CWQAP\r\n");//退出AP
                 await Task.Delay(500);
                 u.Send("AT+CWJAP=\"XXX\",\"12345678\"\r\n");//加入AP，ssid=ESP8266 passwd=012345678
-                await Task.Delay(5000);
+                await Task.Delay(15000);
                 u.Send("AT+CIFSR\r\n");
                 await Task.Delay(500);
                 u.Send("AT+CIPMUX=0\r\n");//设置单路连接
@@ -80,6 +80,7 @@ namespace body_robot
                 u.Send("AT+CIPSTART=\"TCP\",\"192.168.4.1\",5000\r\n");//建立TCP连接，目标IP 192.168.4.1 端口5000
                 await Task.Delay(2000);
                 SendPWM(Constants.init_PWM);//发送初始PWM数据
+                await Task.Delay(1000);
                 DataShow("wifi模块初始化结束：\n");
                 finish = true;//wifi模块初始化标志设为true           
             //for (int i = 0; i < 10; i++)
@@ -123,11 +124,10 @@ namespace body_robot
         public  void SendPWM(string PWM)
         {
             if (SendFinish == true)//若发送完成标志为true则设置为false，表示正在发送
-                SendFinish = !SendFinish;
-
-            u.Send("AT+CIPSEND=53\r\n");//发送17*3 = 51 位 长度数据
+                SendFinish = !SendFinish;            
+            u.Send("AT+CIPSEND=" + PWM.Length + "\r\n");//发送 PWM.length  位 长度数据
             //System.Threading.Thread.Sleep(100);//当前线程延时100ms      
-            u.Send(PWM + "\r\n");       //发送PWM  /r/n 是AT命令的结尾部分           
+            u.Send(PWM);       //发送PWM         
             if (SendFinish == false)     //若发送完成标志为false则设置为true，表示已发送完成
                 SendFinish = !SendFinish;
         }

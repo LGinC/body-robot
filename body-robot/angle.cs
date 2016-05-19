@@ -113,9 +113,7 @@ namespace body_robot
         /// <returns>PWM信号 0-Constants.PWM_MAX</returns>
 
         public int ToPWMshoulder( Joint s, Joint e, Joint h )//此处传入关节结构体，可获取关节类型来确定是左手还是右手
-        {
-            #region 肩部位角度计算
-            
+        {           
             CameraSpacePoint arm,       hand,   n1,                  n2;
             //               胳膊向量   手向量  前二者形成面的法向量   Y轴负方向向量
             double norm_n1,    norm_n2,          cos = 0,         acos,    r;
@@ -173,7 +171,6 @@ namespace body_robot
             }
             Console.WriteLine("{0} invalid cos:{1}\t", s.JointType.ToString(),cos);
             return Constants.INVALID_JOINT_VALUE;//返回异常值
-            #endregion
         }
         
         /// <summary>
@@ -266,7 +263,7 @@ namespace body_robot
                 }
                
             }
-            Console.WriteLine("h invalid cos:{0}\t", cos);
+            Console.WriteLine("{0} invalid cos:{1}\t", h.ToString(),cos);
             return Constants.INVALID_JOINT_VALUE;
         }
 
@@ -305,7 +302,7 @@ namespace body_robot
                 }
                 return PWM;
             }
-            Console.WriteLine("hip invalid cos:{0}\t", cos);
+            Console.WriteLine("{0} invalid cos:{1}\t", h.ToString(),cos);
             return Constants.INVALID_JOINT_VALUE;
         }
         /// <summary>
@@ -391,7 +388,7 @@ namespace body_robot
                     return PWM;
                 }
             }
-            Console.WriteLine("knee invalid cos:{0}\t", cos);
+            Console.WriteLine("{0} invalid cos:{1}\t", k.ToString(), cos);
             return Constants.INVALID_JOINT_VALUE;
         }
 

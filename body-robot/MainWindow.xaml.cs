@@ -61,7 +61,7 @@ namespace body_robot
         /// <summary>
         /// 追踪者ID
         /// </summary>
-        private ulong TrackID = 0;
+        private ulong TrackID = 9;
 
         /// <summary>
         /// 速度控制
@@ -71,12 +71,12 @@ namespace body_robot
         /// <summary>
         /// 画刷
         /// </summary>
-        private readonly Brush[] brushes;
+        //private readonly Brush[] brushes;
 
         /// <summary>
         /// 位图
         /// </summary>
-        private CoordinateMapper coordinateMapper = null;
+        //private CoordinateMapper coordinateMapper = null;
 
         /// <summary>
         /// 骨骼
@@ -200,7 +200,7 @@ namespace body_robot
             sw.Start();                     //开始计时器
             if (wifi.finish)    //待wifi初始化完成再进行数据处理
             {
-                if (speed++ == 20)             //数据帧处理速度控制，每对应帧过后处理一次，kinect数据帧获取速度约为30fps，为了和传输模块同步可修改此数值进行数据发送速度调整
+                if (speed++ == 2)             //数据帧处理速度控制，每对应帧过后处理一次，kinect数据帧获取速度约为30fps，为了和传输模块同步可修改此数值进行数据发送速度调整
                 {
                     int[] position_pre = new int[Constants.POSITION_LENTH];   //新建PWM数组
                     speed = 0;                          //重置速度控制
@@ -217,24 +217,26 @@ namespace body_robot
                             return;
                         }
                     }
-
                     foreach (var item in body)  //遍历每个body
                     {
 
                         #region 关节角度计算        
-                        if (item.JointOrientations[JointType.Head].Orientation.Z < 1.5) //Z轴距离大于1.5不识别
+                        if (item.JointOrientations[JointType.Head].Orientation.Z < 1.5) //Z轴距离大于2不处理
                         {
-                            if (TrackID == 0)
+
+                            if (item.IsTracked)    //body处于被追踪状态时处理
                             {
-                                TrackID = item.TrackingId;
-                                Wifi_DataShow("ID:" + TrackID.ToString());
-                            }
-                            if (TrackID == item.TrackingId)   //只有当TrackID和当前ID一致时进行处理
-                            {
-                                if (item.IsTracked)    //body处于被追踪状态时处理
+                                if (TrackID == 9)
                                 {
+                                    Console.WriteLine("tracking ID:" + TrackID.ToString());
+                                    TrackID = item.TrackingId;
+                                }
+
+                                if (TrackID == item.TrackingId)   //只有当TrackID和当前ID一致时进行处理
+                                {
+                                    //Wifi_DataShow("tracking ID:" + TrackID.ToString());
                                     int c = 0;
-                                    foreach(var j in item.Joints)
+                                    foreach (var j in item.Joints)
                                     {
                                         joints[c++] = ToAngle.filter(j.Value);
                                     }
@@ -263,12 +265,36 @@ namespace body_robot
                                         position_pre[(int)angle.servos.HipLeft] = 60;
                                     }
                                     difference = true;
+                                    int diff = 0;
                                     for (int i = 0; i < Constants.POSITION_LENTH; i++)
                                     {
-                                        if (position[i] - position_pre[i] > 5 || position[i] - position_pre[i] < -5)//若无任何舵机变化值大于5则不发送
+                                        switch(position_pre[i])
+                                        {
+                                            case 0:
+                                                if (i != (int)angle.servos.FootLeft && i != (int)angle.servos.FootRight && i != (int)angle.servos.Head && i != Constants.POSITION_LENTH - 1)
+                                                {
+                                                    return;//非脚部和头部舵机  值为0，计算异常，数据帧丢弃
+                                                }
+                                                break;
+                                            case (int)Constants.INVALID_JOINT_VALUE:
+                                                    return;//有舵机值异常，数据帧丢弃   
+                                            default:
+                                                break;                                            
+                                        }
+                                        diff = Math.Abs(position[i] - position_pre[i]);//计算本帧舵机PWM值和上帧的差值
+                                    
+                                        //if (diff > 50) 
+                                            //return;
+                                        
+                                        if (diff > 5)//若无任何舵机变化值大于5则不发送
                                             difference = false;
-                                        position[i] = position_pre[i];
                                     }
+                                    if (position[0] != 0)//若position数组值不为0则说明不是第一次进入,因为int数组初始化默认值为0
+                                    {
+                                        if (diff > 40)//变化值大于40说明计算异常，数据帧丢弃
+                                            return;
+                                    }                                
+                                    position = position_pre;
                                     position[Constants.POSITION_LENTH - 1] = 0;
                                     if (difference == true)
                                     {
@@ -282,19 +308,7 @@ namespace body_robot
                                         if (position[i] >= 0 && position[i] < 10)//1-9补两个0
                                         {
                                             PWM += "00" + position[i];
-                                            if (position[i] == 0)
-                                            {
-                                                if (i != (int)angle.servos.FootLeft && i != (int)angle.servos.FootRight && i != (int)angle.servos.Head && i != Constants.POSITION_LENTH - 1)
-                                                {
-                                                    Console.WriteLine("invalid 0 value:{0} invalid PWM:{1}", PWM, position[i]);
-                                                    PWM = "";
-                                                    return;
-                                                }
-                                            }
                                         }
-
-
-
                                         else if (position[i] < 100 && position[i] >= 10)//10-99补一个0
                                             PWM += "0" + position[i];
                                         else if (position[i] > 255 || position[i] < 0)//大于255或者小于等于0为异常
@@ -333,6 +347,7 @@ namespace body_robot
                                         //p = System.Text.RegularExpressions.Regex.Replace(PWM.Substring(2, 51), @".{3}","$0 ");
                                         //TextBox_data.AppendText(p + "\n");
                                         TextBox_data.AppendText(PWM + "\n");
+                                        TextBox_data.AppendText("是否限制：" + item.IsRestricted + "\n");
                                         TextBox_data.ScrollToEnd();
                                     }));
                                     wifi.SendPWM(PWM);
@@ -359,23 +374,23 @@ namespace body_robot
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void B_open_clicked(object sender, RoutedEventArgs e)
-        {       
+        {
             comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;//默认选择最后一个
             if (IsOpen == true)
             {
                 if (wifi.finish == true)
-                {     
+                {
                     try
                     {
                         deinit_peripheral();
                         B_open.Content = "close";
                         B_open.Background = Brushes.Red;
-                    }            
-                    catch(Exception ex)
+                    }
+                    catch (Exception ex)
                     {
                         MessageBox.Show(ex.ToString());
                         IsOpen = false;
-                    }                
+                    }
                     comboBox_com.Items.Clear();
                     String[] a = Uart.get_com();//添加串口名
                     foreach (var item in a)
@@ -383,7 +398,7 @@ namespace body_robot
                         comboBox_com.Items.Add(item);
                     }
                     comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;
-                   
+
                 }
                 else
                     MessageBox.Show("初始化未完成，不能操作");
@@ -398,7 +413,7 @@ namespace body_robot
                         B_open.Content = "open";
                         B_open.Background = Brushes.Yellow;
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         MessageBox.Show(ex.ToString() + "\n" + IsOpen);
                         comboBox_com.Items.Clear();
@@ -421,18 +436,18 @@ namespace body_robot
         /// </summary>
         public void init_peripheral()
         {
-                int baud = int.Parse(comboBox_BaudRate.SelectedValue.ToString());//选中的波特率转为int
-                string com = comboBox_com.SelectedValue.ToString();//选中的com口转为string
-                this.uart = new Uart(baud, com);//新建uart对象               
-                this.sensor.Open();//打开kinect传感器
-                wifi = new ESP8266(this.uart);//新建wifi对象
-                wifi.DataShow += Wifi_DataShow;//添加wifi数据回显事件处理函数
-                if (this.bodyFrameReader != null)//如果body数据帧阅读器存在则添加数据帧到达事件处理函数
-                {
-                    this.bodyFrameReader.FrameArrived += Reader_FrameArrived;
-                }
-                wifi.initESP();//wifi初始化
-                IsOpen = true;
+            int baud = int.Parse(comboBox_BaudRate.SelectedValue.ToString());//选中的波特率转为int
+            string com = comboBox_com.SelectedValue.ToString();//选中的com口转为string
+            this.uart = new Uart(baud, com);//新建uart对象               
+            this.sensor.Open();//打开kinect传感器
+            wifi = new ESP8266(this.uart);//新建wifi对象
+            wifi.DataShow += Wifi_DataShow;//添加wifi数据回显事件处理函数
+            if (this.bodyFrameReader != null)//如果body数据帧阅读器存在则添加数据帧到达事件处理函数
+            {
+                this.bodyFrameReader.FrameArrived += Reader_FrameArrived;
+            }
+            wifi.initESP();//wifi初始化
+            IsOpen = true;
         }
 
         /// <summary>
@@ -440,14 +455,14 @@ namespace body_robot
         /// </summary>
         public void deinit_peripheral()
         {
-                if (this.sensor.IsOpen)
-                {
-                    this.sensor.Close();
-                    this.bodyFrameReader.FrameArrived -= Reader_FrameArrived;
-                }
-                wifi.disposeESP();//退出AP
-                uart.Uart_close();//串口关闭
-                IsOpen = false;
+            if (this.sensor.IsOpen)
+            {
+                this.sensor.Close();
+                this.bodyFrameReader.FrameArrived -= Reader_FrameArrived;
+            }
+            wifi.disposeESP();//退出AP
+            uart.Uart_close();//串口关闭
+            IsOpen = false;
         }
 
     }

@@ -45,11 +45,6 @@ namespace body_robot
         /// </summary>
         public bool SendFinish = true;
 
-        /// <summary>
-        /// 初始化完成标志
-        /// </summary>
-        private bool init_failed = false;
-
         #endregion
         /// <summary>
         /// 传入串口，添加串口接收事件
@@ -69,7 +64,6 @@ namespace body_robot
         /// </summary>
         public async void initESP()
         {
-            this.init_failed = false;
             finish = false;
             sw.Start();//启动计时器
             DataShow(sw.Elapsed + " wifi模块初始化开始：\n");//主窗体显示
@@ -116,8 +110,10 @@ namespace body_robot
             DataShow(sw.Elapsed.ToString("G") + " " + s);//在主窗体输出时间和数据
             status = s;
             //if (status.Contains("CWJAP:1"))
+            //{
             //    this.init_failed = true;
-            //throw new NotImplementedException();
+            //    initESP();
+            //}                
         }
 
         /// <summary>
@@ -130,7 +126,7 @@ namespace body_robot
                 SendFinish = !SendFinish;
 
             u.Send("AT+CIPSEND=53\r\n");//发送17*3 = 51 位 长度数据
-            System.Threading.Thread.Sleep(100);//当前线程延时500ms      
+            //System.Threading.Thread.Sleep(100);//当前线程延时100ms      
             u.Send(PWM + "\r\n");       //发送PWM  /r/n 是AT命令的结尾部分           
             if (SendFinish == false)     //若发送完成标志为false则设置为true，表示已发送完成
                 SendFinish = !SendFinish;

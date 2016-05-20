@@ -206,174 +206,176 @@ namespace body_robot
             sw.Start();                     //开始计时器
             if (wifi.finish)    //待wifi初始化完成再进行数据处理
             {
-                    int[] position_pre = new int[Constants.POSITION_LENTH];   //新建PWM数组
-                    speed = 0;                          //重置速度控制
-                    using (BodyFrame b = e.FrameReference.AcquireFrame())   //获取body数据帧，using会在括号结束后自动销毁申请的数据结构
+                int[] position_pre = new int[Constants.POSITION_LENTH];   //新建PWM数组                
+                using (BodyFrame b = e.FrameReference.AcquireFrame())   //获取body数据帧，using会在括号结束后自动销毁申请的数据结构
+                {
+                    try
                     {
-                        try
-                        {
-                            body = new Body[b.BodyCount];   //新建body数组
-                            b.GetAndRefreshBodyData(body);  //从body数据帧里获取body对象放入body数组
-                        }
-                        catch (Exception ie)
-                        {
-                            Console.WriteLine(ie.ToString());
-                            return;
-                        }
+                        body = new Body[b.BodyCount];   //新建body数组
+                        b.GetAndRefreshBodyData(body);  //从body数据帧里获取body对象放入body数组
                     }
-                    foreach (var item in body)  //遍历每个body
+                    catch (Exception ie)
                     {
+                        Console.WriteLine(ie.ToString());
+                        return;
+                    }
+                }
+                foreach (var item in body)  //遍历每个body
+                {
 
-                        #region 关节角度计算 
-                        if (item.IsTracked)    //body处于被追踪状态时处理
+                    #region 关节角度计算 
+                    if (item.IsTracked)    //body处于被追踪状态时处理
+                    {
+                        if (item.JointOrientations[JointType.Head].Orientation.Z < 2) //Z轴距离大于2不处理
                         {
-                            if (item.JointOrientations[JointType.Head].Orientation.Z < 2) //Z轴距离大于2不处理
+
+
+                            if (TrackID == 9)
                             {
+                                Console.WriteLine("tracking ID:" + TrackID.ToString());
+                                TrackID = item.TrackingId;
+                            }
 
-
-                                if (TrackID == 9)
+                            if (TrackID == item.TrackingId)   //只有当TrackID和当前ID一致时进行处理
+                            {
+                                //Wifi_DataShow("tracking ID:" + TrackID.ToString());
+                                int c = 0;
+                                foreach (var j in item.Joints)
                                 {
-                                    Console.WriteLine("tracking ID:" + TrackID.ToString());
-                                    TrackID = item.TrackingId;
+                                    joints[c++] = ToAngle.filter(j.Value);
+                                }
+                                //Console.WriteLine("State:{0}    x:{1} y:{2}", item.LeanTrackingState, item.Lean.X, item.Lean.Y);
+                                position_pre[(int)angle.servos.ShoulderRight] = ToAngle.ToPWMshoulder(joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight], joints[(int)JointType.HandRight]);
+                                position_pre[(int)angle.servos.ShoulderLeft] = ToAngle.ToPWMshoulder(joints[(int)JointType.ShoulderLeft], joints[(int)JointType.ElbowLeft], joints[(int)JointType.HandLeft]);
+                                position_pre[(int)angle.servos.ElbowRight] = ToAngle.ToPWM_elbow(joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight]);
+                                position_pre[(int)angle.servos.HandRight] = ToAngle.ToPWM_hand(joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight], joints[(int)JointType.HandRight]);
+                                position_pre[(int)angle.servos.ElbowLeft] = ToAngle.ToPWM_elbow(joints[(int)JointType.ShoulderLeft], joints[(int)JointType.ElbowLeft]);
+                                position_pre[(int)angle.servos.HandLeft] = ToAngle.ToPWM_hand(joints[(int)JointType.ShoulderLeft], joints[(int)JointType.ElbowLeft], joints[(int)JointType.HandLeft]);
+                                position_pre[(int)angle.servos.HipRight] = ToAngle.ToPWM_hip(joints[(int)JointType.HipRight], joints[(int)JointType.KneeRight]);
+                                position_pre[(int)angle.servos.HipLeft] = ToAngle.ToPWM_hip(joints[(int)JointType.HipLeft], joints[(int)JointType.KneeLeft]);
+                                position_pre[(int)angle.servos.ThighRight] = ToAngle.ToPWM_thigh(joints[(int)JointType.HipRight], joints[(int)JointType.KneeRight]);
+                                position_pre[(int)angle.servos.ThighLeft] = ToAngle.ToPWM_thigh(joints[(int)JointType.HipLeft], joints[(int)JointType.KneeLeft]);
+                                position_pre[(int)angle.servos.KneeRight] = ToAngle.ToPWM_knee(joints[(int)JointType.HipRight], joints[(int)JointType.KneeRight], joints[(int)JointType.AnkleRight]);
+                                position_pre[(int)angle.servos.AnkleRight] = ToAngle.ToPWM_ankle(joints[(int)JointType.AnkleRight]);
+                                position_pre[(int)angle.servos.KneeLeft] = ToAngle.ToPWM_knee(joints[(int)JointType.HipLeft], joints[(int)JointType.KneeLeft], joints[(int)JointType.AnkleLeft]);
+                                position_pre[(int)angle.servos.AnkleLeft] = ToAngle.ToPWM_ankle(joints[(int)JointType.AnkleLeft]);
+
+                                if (position_pre[(int)angle.servos.HipRight] == 0)//当左右髋读取值为0时，赋默认值60
+                                {
+                                    position_pre[(int)angle.servos.HipRight] = 60;
+                                }
+                                if (position_pre[(int)angle.servos.HipLeft] == 0)
+                                {
+                                    position_pre[(int)angle.servos.HipLeft] = 60;
+                                }
+                                difference = true;
+                                int diff = 0;
+                                for (int i = 0; i < Constants.POSITION_LENTH; i++)
+                                {
+                                    switch (position_pre[i])
+                                    {
+                                        case 0:
+                                            if (i != (int)angle.servos.FootLeft && i != (int)angle.servos.FootRight && i != (int)angle.servos.Head && i != Constants.POSITION_LENTH - 1)
+                                            {
+                                                return;//非脚部和头部舵机  值为0，计算异常，数据帧丢弃
+                                            }
+                                            break;
+                                        case (int)Constants.INVALID_JOINT_VALUE:
+                                            return;//有舵机值异常，数据帧丢弃   
+                                        default:
+                                            break;
+                                    }
+                                    diff = Math.Abs(position[i] - position_pre[i]);//计算本帧舵机PWM值和上帧的差值
+
+                                    if (diff > 5)//若无任何舵机变化值大于5则不发送
+                                        difference = false;
+                                }
+                                if (position[0] != 0)//若position数组值不为0则说明不是第一次进入,因为int数组初始化默认值为0
+                                {
+                                    if (diff > 40)//变化值大于40说明计算异常，数据帧丢弃
+                                        return;
+                                }
+                                position = position_pre;
+                                                                //开始执行PWM算术平均滤波
+                                speed++;                                        
+                                if (speed < Constants.frame_count)
+                                {
+                                    positions.Add(position);
+                                    return;
+                                }
+                                else
+                                {
+                                    speed = 0;
+                                    positions.Add(position);
+                                    position = filter_position(positions);
+                                    positions.Clear();
+                                }
+                                position[Constants.POSITION_LENTH - 1] = 0;
+                                if (difference == true)
+                                {
+                                    difference = true;
+                                    return;
+                                }
+                                ToAngle.PoseDect(ref position);
+                                String PWM = "";
+                                for (int i = 0; i < Constants.POSITION_LENTH - 1; i++)
+                                {
+                                    if (position[i] >= 0 && position[i] < 10)//1-9补两个0
+                                    {
+                                        PWM += "00" + position[i];
+                                    }
+                                    else if (position[i] < 100 && position[i] >= 10)//10-99补一个0
+                                        PWM += "0" + position[i];
+                                    else if (position[i] > 255 || position[i] < 0)//大于255或者小于等于0为异常
+                                    {
+                                        Console.WriteLine("invalid value:{0} invalid PWM:{1}", PWM, position[i]);
+                                        PWM = "";
+                                        return;
+                                    }
+                                    else//100 - 250不补0
+                                        PWM += position[i];
+                                }
+                                if (position[Constants.POSITION_LENTH - 1] > 0)
+                                {
+                                    PWM = PWM.Insert(0, "p" + position[Constants.POSITION_LENTH - 1]);
+                                }
+                                else
+                                {
+                                    PWM = PWM.Insert(0, "sb");
                                 }
 
-                                if (TrackID == item.TrackingId)   //只有当TrackID和当前ID一致时进行处理
+
+                                //    foreach (var ite in position)
+                                //    {
+                                //        Console.Write(ite + "\t");
+                                //        if (ite < 0 || ite > 255)
+                                //        {
+                                //            Console.Write("\n");
+                                //            return;
+                                //        }
+                                //    }
+
+                                this.Dispatcher.Invoke(new Action(() =>
                                 {
-                                    //Wifi_DataShow("tracking ID:" + TrackID.ToString());
-                                    int c = 0;
-                                    foreach (var j in item.Joints)
-                                    {
-                                        joints[c++] = ToAngle.filter(j.Value);
-                                    }
-                                    //Console.WriteLine("State:{0}    x:{1} y:{2}", item.LeanTrackingState, item.Lean.X, item.Lean.Y);
-                                    position_pre[(int)angle.servos.ShoulderRight] = ToAngle.ToPWMshoulder(joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight], joints[(int)JointType.HandRight]);
-                                    position_pre[(int)angle.servos.ShoulderLeft] = ToAngle.ToPWMshoulder(joints[(int)JointType.ShoulderLeft], joints[(int)JointType.ElbowLeft], joints[(int)JointType.HandLeft]);
-                                    position_pre[(int)angle.servos.ElbowRight] = ToAngle.ToPWM_elbow(joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight]);
-                                    position_pre[(int)angle.servos.HandRight] = ToAngle.ToPWM_hand(joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight], joints[(int)JointType.HandRight]);
-                                    position_pre[(int)angle.servos.ElbowLeft] = ToAngle.ToPWM_elbow(joints[(int)JointType.ShoulderLeft], joints[(int)JointType.ElbowLeft]);
-                                    position_pre[(int)angle.servos.HandLeft] = ToAngle.ToPWM_hand(joints[(int)JointType.ShoulderLeft], joints[(int)JointType.ElbowLeft], joints[(int)JointType.HandLeft]);
-                                    position_pre[(int)angle.servos.HipRight] = ToAngle.ToPWM_hip(joints[(int)JointType.HipRight], joints[(int)JointType.KneeRight]);
-                                    position_pre[(int)angle.servos.HipLeft] = ToAngle.ToPWM_hip(joints[(int)JointType.HipLeft], joints[(int)JointType.KneeLeft]);
-                                    position_pre[(int)angle.servos.ThighRight] = ToAngle.ToPWM_thigh(joints[(int)JointType.HipRight], joints[(int)JointType.KneeRight]);
-                                    position_pre[(int)angle.servos.ThighLeft] = ToAngle.ToPWM_thigh(joints[(int)JointType.HipLeft], joints[(int)JointType.KneeLeft]);
-                                    position_pre[(int)angle.servos.KneeRight] = ToAngle.ToPWM_knee(joints[(int)JointType.HipRight], joints[(int)JointType.KneeRight], joints[(int)JointType.AnkleRight]);
-                                    position_pre[(int)angle.servos.AnkleRight] = ToAngle.ToPWM_ankle(joints[(int)JointType.AnkleRight]);
-                                    position_pre[(int)angle.servos.KneeLeft] = ToAngle.ToPWM_knee(joints[(int)JointType.HipLeft], joints[(int)JointType.KneeLeft], joints[(int)JointType.AnkleLeft]);
-                                    position_pre[(int)angle.servos.AnkleLeft] = ToAngle.ToPWM_ankle(joints[(int)JointType.AnkleLeft]);
-
-                                    if (position_pre[(int)angle.servos.HipRight] == 0)//当左右髋读取值为0时，赋默认值60
-                                    {
-                                        position_pre[(int)angle.servos.HipRight] = 60;
-                                    }
-                                    if (position_pre[(int)angle.servos.HipLeft] == 0)
-                                    {
-                                        position_pre[(int)angle.servos.HipLeft] = 60;
-                                    }
-                                    difference = true;
-                                    int diff = 0;
-                                    for (int i = 0; i < Constants.POSITION_LENTH; i++)
-                                    {
-                                        switch (position_pre[i])
-                                        {
-                                            case 0:
-                                                if (i != (int)angle.servos.FootLeft && i != (int)angle.servos.FootRight && i != (int)angle.servos.Head && i != Constants.POSITION_LENTH - 1)
-                                                {
-                                                    return;//非脚部和头部舵机  值为0，计算异常，数据帧丢弃
-                                                }
-                                                break;
-                                            case (int)Constants.INVALID_JOINT_VALUE:
-                                                return;//有舵机值异常，数据帧丢弃   
-                                            default:
-                                                break;
-                                        }
-                                        diff = Math.Abs(position[i] - position_pre[i]);//计算本帧舵机PWM值和上帧的差值
-
-                                        if (diff > 5)//若无任何舵机变化值大于5则不发送
-                                            difference = false;
-                                    }
-                                    if (position[0] != 0)//若position数组值不为0则说明不是第一次进入,因为int数组初始化默认值为0
-                                    {
-                                        if (diff > 40)//变化值大于40说明计算异常，数据帧丢弃
-                                            return;
-                                    }
-                                    position = position_pre;
-                                    if(speed < Constants.frame_count)
-                                    {
-                                        positions.Add(position);
-                                        return;
-                                    }
-                                    else
-                                    {
-                                        speed = 0;
-                                        positions.Add(position);
-                                        position = filter_position(positions);
-                                    }
-                                    position[Constants.POSITION_LENTH - 1] = 0;
-                                    if (difference == true)
-                                    {
-                                        difference = true;
-                                        return;
-                                    }
-                                    ToAngle.PoseDect(ref position);
-                                    String PWM = "";
-                                    for (int i = 0; i < Constants.POSITION_LENTH - 1; i++)
-                                    {
-                                        if (position[i] >= 0 && position[i] < 10)//1-9补两个0
-                                        {
-                                            PWM += "00" + position[i];
-                                        }
-                                        else if (position[i] < 100 && position[i] >= 10)//10-99补一个0
-                                            PWM += "0" + position[i];
-                                        else if (position[i] > 255 || position[i] < 0)//大于255或者小于等于0为异常
-                                        {
-                                            Console.WriteLine("invalid value:{0} invalid PWM:{1}", PWM, position[i]);
-                                            PWM = "";
-                                            return;
-                                        }
-                                        else//100 - 250不补0
-                                            PWM += position[i];
-                                    }
-                                    if (position[Constants.POSITION_LENTH - 1] > 0)
-                                    {
-                                        PWM = PWM.Insert(0, "p" + position[Constants.POSITION_LENTH - 1]);
-                                    }
-                                    else
-                                    {
-                                        PWM = PWM.Insert(0, "sb");
-                                    }
-
-
-                                    //    foreach (var ite in position)
-                                    //    {
-                                    //        Console.Write(ite + "\t");
-                                    //        if (ite < 0 || ite > 255)
-                                    //        {
-                                    //            Console.Write("\n");
-                                    //            return;
-                                    //        }
-                                    //    }
-
-                                    this.Dispatcher.Invoke(new Action(() =>
-                                    {
                                         //String p;
                                         //TextBox_data.AppendText(PWM.Substring(0, 2));
                                         //p = System.Text.RegularExpressions.Regex.Replace(PWM.Substring(2, 51), @".{3}","$0 ");
                                         //TextBox_data.AppendText(p + "\n");
                                         TextBox_data.AppendText(PWM + "\n");
-                                        TextBox_data.AppendText("是否限制：" + item.IsRestricted + "\n");
-                                        TextBox_data.ScrollToEnd();
-                                    }));
-                                    wifi.SendPWM(PWM);
-                                    //foreach (var p in position)
-                                    //{
-                                    //    Console.Write(p + " ");
-                                    //}                                     
-                                    //Console.Write("\n");
-                                }
+                                    TextBox_data.AppendText("是否限制：" + item.IsRestricted + "\n");
+                                    TextBox_data.ScrollToEnd();
+                                }));
+                                wifi.SendPWM(PWM);
+                                //foreach (var p in position)
+                                //{
+                                //    Console.Write(p + " ");
+                                //}                                     
+                                //Console.Write("\n");
                             }
-
                         }
-                        #endregion                   
+
+                    }
+                    #endregion
                 }
 
             }
@@ -389,9 +391,9 @@ namespace body_robot
         {
             int i, count = positions[0].Length;
             int[] s = new int[count];
-            foreach(var p in positions)
+            foreach (var p in positions)
             {
-                for(i = 0;i < count;i++)
+                for (i = 0; i < count; i++)
                 {
                     s[i] += p[i];
                 }

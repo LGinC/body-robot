@@ -1,0 +1,13 @@
+<activationrequest>
+<version>3</version>
+<machinehash>DF9F-8BCA-8F49-890C</machinehash>
+<productcode>24</productcode>
+<majorversion>9</majorversion>
+<minorversion>0</minorversion>
+<serialnumber>A3TJ-2FWW-X282-3AYF-73E2-M2E9</serialnumber>
+<session>05276709-f43e-45f6-9c4b-c494733c6c73</session>
+<locale>zh-CN</locale>
+<custom>
+<identifier>liguo@we</identifier>
+</custom>
+</activationrequest>

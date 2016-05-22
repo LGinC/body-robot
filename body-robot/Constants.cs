@@ -57,5 +57,26 @@ namespace body_robot
         /// 发送每一帧由frame_count帧数据过滤而得
         /// </summary>
         public const int frame_count = 5;
+
+
+        /// <summary>
+        /// socket buffer大小
+        /// </summary>
+        public const int buffer_size = 2048;
+
+        /// <summary>
+        /// socket连接超时时间，单位是ms
+        /// </summary>
+        public const int connect_timeout = 1000;
+
+        /// <summary>
+        /// socket接收超时时间，单位ms
+        /// </summary>
+        public const int receive_timeout = 1000;
+
+        /// <summary>
+        /// socket发送超时时间，单位是ms
+        /// </summary>
+        public const int send_timeout = 1000;
     }
 }

@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace body_robot
 {
@@ -13,15 +15,20 @@ namespace body_robot
     public partial class MainWindow : Window
     {
         #region 成员变量定义
-        /// <summary>
-        /// 串口对象
-        /// </summary>
-        private Uart uart;
+        ///// <summary>
+        ///// 串口对象
+        ///// </summary>
+        //private Uart uart;
+    
+        ///// <summary>
+        ///// wifi模块对象
+        ///// </summary>
+        //private ESP8266 wifi;
 
         /// <summary>
-        /// wifi模块对象
+        /// socket连接对象
         /// </summary>
-        private ESP8266 wifi;
+        private Connector conn;
 
         /// <summary>
         /// kinect传感器对象
@@ -48,10 +55,6 @@ namespace body_robot
         /// </summary>
         private BodyFrameReader bodyFrameReader;
 
-        /// <summary>
-        /// 串口是否打开标志
-        /// </summary>
-        private bool IsOpen = false;
 
         /// <summary>
         /// 上次PWM信号和本次PWM是否接近标志，true为接近，不发送PWM，false为差距较大，发送PWM
@@ -105,6 +108,7 @@ namespace body_robot
             position = new int[Constants.POSITION_LENTH];
             positions = new List<int[]>();
             this.sensor = KinectSensor.GetDefault();
+            conn = new Connector();//新建TCP连接对象
             // Torso躯干
             this.bones.Add(new Tuple<JointType, JointType>(JointType.Head, JointType.Neck));
             this.bones.Add(new Tuple<JointType, JointType>(JointType.Neck, JointType.SpineShoulder));
@@ -147,30 +151,51 @@ namespace body_robot
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             this.bodyFrameReader = this.sensor.BodyFrameSource.OpenReader();//打开阅读器
-            comboBox_BaudRate.Items.Add("2400");//添加波特率
-            comboBox_BaudRate.Items.Add("115200");
-            comboBox_BaudRate.SelectedIndex = comboBox_BaudRate.Items.Count - 1;//默认选择最后一个            
+            comboBox_hostIP.ItemsSource = conn.getHostIP();//获取本机IP添加至combobox
+            comboBox_hostIP.SelectedIndex = comboBox_hostIP.Items.Count - 1;//默认选择最后一个
+            conn.AllIP(comboBox_hostIP.SelectedValue.ToString());//刷新当前局域网所有在线IP
+            comboBox_targetIP.ItemsSource = conn.IP_list;//添加局域网IP至combobox
             //init_peripheral();
-            String[] a = Uart.get_com();//添加串口名
-            foreach (var item in a)
-            {
-                comboBox_com.Items.Add(item);
-            }
-            comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;
-            B_open_clicked(B_open, new RoutedEventArgs());//调用打开按钮点击事件
+            //String[] a = Uart.get_com();//添加串口名
+            //foreach (var item in a)
+            //{
+            //    comboBox_com.Items.Add(item);
+            //}
+            //comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;
+            //B_open_clicked(B_open, new RoutedEventArgs());//调用打开按钮点击事件
         }
 
         /// <summary>
-        /// wifi回传数据显示
+        /// 按钮B_connect点击事件处理函数
         /// </summary>
-        /// <param name="show">wifi回传的数据</param>
-        private void Wifi_DataShow(string show)
+        /// <param name="sender">事件发送者对象，此处为按钮对象本身</param>
+        /// <param name="e">路由事件参数</param>
+        private void B_connect_clicked(object sender, RoutedEventArgs e)
         {
-            this.Dispatcher.Invoke(new Action(() =>
+            //string p = TextBox_Port.Text;
+            try
             {
-                TextBox_show.AppendText(show);//追加至TextBox_show
-                TextBox_show.ScrollToEnd();//滚动至末尾
-            }));
+                if (conn.IsConnect == false)//点击之前为断开状态，则打开连接
+                {
+                    uint port;
+                    string ip = comboBox_targetIP.SelectedItem.ToString();
+                    if(UInt32.TryParse(TextBox_Port.Text,out port) == false)
+                    {
+                        throw new InvalidOperationException("端口Port请输入数字");
+                    }                       
+                    conn.OpenConnection(ip, port);
+                    B_connect.Content = "connect";                                        
+                }
+                else//点击之前为连接状态，则断开连接
+                {
+                    conn.CloseConnection();
+                    B_connect.Content = "disconnect";
+                }
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
 
         }
 
@@ -181,7 +206,7 @@ namespace body_robot
         /// <param name="e"></param>
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)//窗口关闭时回调
         {
-            deinit_peripheral();
+           // deinit_peripheral();
             if (this.bodyFrameReader != null)//body数据帧阅读器存在则关闭
             {
                 this.bodyFrameReader.Dispose();//阅读器释放资源
@@ -204,7 +229,7 @@ namespace body_robot
         {
             Stopwatch sw = new Stopwatch(); //新建计时器
             sw.Start();                     //开始计时器
-            if (wifi.finish)    //待wifi初始化完成再进行数据处理
+            if (conn.IsConnect == true)    //待socket连接完成再进行数据处理
             {
                 int[] position_pre = new int[Constants.POSITION_LENTH];   //新建PWM数组                
                 using (BodyFrame b = e.FrameReference.AcquireFrame())   //获取body数据帧，using会在括号结束后自动销毁申请的数据结构
@@ -365,7 +390,7 @@ namespace body_robot
                                     TextBox_data.AppendText("是否限制：" + item.IsRestricted + "\n");
                                     TextBox_data.ScrollToEnd();
                                 }));
-                                wifi.SendPWM(PWM);
+                                //wifi.SendPWM(PWM);
                                 //foreach (var p in position)
                                 //{
                                 //    Console.Write(p + " ");
@@ -405,102 +430,102 @@ namespace body_robot
             return s;
         }
 
-        /// <summary>
-        /// B_open按钮点击函数
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void B_open_clicked(object sender, RoutedEventArgs e)
-        {
-            comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;//默认选择最后一个
-            if (IsOpen == true)
-            {
-                if (wifi.finish == true)
-                {
-                    try
-                    {
-                        deinit_peripheral();
-                        B_open.Content = "close";
-                        B_open.Background = Brushes.Red;
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show(ex.ToString());
-                        IsOpen = false;
-                    }
-                    comboBox_com.Items.Clear();
-                    String[] a = Uart.get_com();//添加串口名
-                    foreach (var item in a)
-                    {
-                        comboBox_com.Items.Add(item);
-                    }
-                    comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;
+        ///// <summary>
+        ///// B_open按钮点击函数
+        ///// </summary>
+        ///// <param name="sender"></param>
+        ///// <param name="e"></param>
+        //private void B_open_clicked(object sender, RoutedEventArgs e)
+        //{
+        //    comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;//默认选择最后一个
+        //    if (IsOpen == true)
+        //    {
+        //        if (wifi.finish == true)
+        //        {
+        //            try
+        //            {
+        //                //deinit_peripheral();
+        //                B_open.Content = "close";
+        //                B_open.Background = Brushes.Red;
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                MessageBox.Show(ex.ToString());
+        //                IsOpen = false;
+        //            }
+        //            //comboBox_com.Items.Clear();
+        //            //String[] a = Uart.get_com();//添加串口名
+        //            //foreach (var item in a)
+        //            //{
+        //            //    comboBox_com.Items.Add(item);
+        //            //}
+        //            //comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;
 
-                }
-                else
-                    MessageBox.Show("初始化未完成，不能操作");
-            }
-            else
-            {
-                if (uart == null || wifi.finish == true)
-                {
-                    try
-                    {
-                        init_peripheral();
-                        B_open.Content = "open";
-                        B_open.Background = Brushes.Yellow;
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show(ex.ToString() + "\n" + IsOpen);
-                        comboBox_com.Items.Clear();
-                        String[] a = Uart.get_com();//添加串口名
-                        foreach (var item in a)
-                        {
-                            comboBox_com.Items.Add(item);
-                        }
-                        comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;
-                        IsOpen = false;
-                    }
-                }
-                else
-                    MessageBox.Show("初始化未完成，不能操作");
-            }
-        }
+        //        }
+        //        else
+        //            MessageBox.Show("初始化未完成，不能操作");
+        //    }
+        //    else
+        //    {
+        //        //if (uart == null || wifi.finish == true)
+        //        {
+        //            try
+        //            {
+        //                //init_peripheral();
+        //                B_open.Content = "open";
+        //                B_open.Background = Brushes.Yellow;
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                MessageBox.Show(ex.ToString() + "\n" + IsOpen);
+        //                comboBox_com.Items.Clear();
+        //                String[] a = Uart.get_com();//添加串口名
+        //                foreach (var item in a)
+        //                {
+        //                    comboBox_com.Items.Add(item);
+        //                }
+        //                comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;
+        //                IsOpen = false;
+        //            }
+        //        }
+        //        else
+        //            MessageBox.Show("初始化未完成，不能操作");
+        //    }
+        //}
 
-        /// <summary>
-        /// 初始化外围设备，包括串口、wifi和kinect传感器
-        /// </summary>
-        public void init_peripheral()
-        {
-            int baud = int.Parse(comboBox_BaudRate.SelectedValue.ToString());//选中的波特率转为int
-            string com = comboBox_com.SelectedValue.ToString();//选中的com口转为string
-            this.uart = new Uart(baud, com);//新建uart对象               
-            this.sensor.Open();//打开kinect传感器
-            wifi = new ESP8266(this.uart);//新建wifi对象
-            wifi.DataShow += Wifi_DataShow;//添加wifi数据回显事件处理函数
-            if (this.bodyFrameReader != null)//如果body数据帧阅读器存在则添加数据帧到达事件处理函数
-            {
-                this.bodyFrameReader.FrameArrived += Reader_FrameArrived;
-            }
-            wifi.initESP();//wifi初始化
-            IsOpen = true;
-        }
+        ///// <summary>
+        ///// 初始化外围设备，包括串口、wifi和kinect传感器
+        ///// </summary>
+        //public void init_peripheral()
+        //{
+        //    int baud = int.Parse(comboBox_BaudRate.SelectedValue.ToString());//选中的波特率转为int
+        //    string com = comboBox_com.SelectedValue.ToString();//选中的com口转为string
+        //    this.uart = new Uart(baud, com);//新建uart对象               
+        //    this.sensor.Open();//打开kinect传感器
+        //    wifi = new ESP8266(this.uart);//新建wifi对象
+        //    wifi.DataShow += Wifi_DataShow;//添加wifi数据回显事件处理函数
+        //    if (this.bodyFrameReader != null)//如果body数据帧阅读器存在则添加数据帧到达事件处理函数
+        //    {
+        //        this.bodyFrameReader.FrameArrived += Reader_FrameArrived;
+        //    }
+        //    wifi.initESP();//wifi初始化
+        //    IsOpen = true;
+        //}
 
-        /// <summary>
-        /// 外围设备释放函数 
-        /// </summary>
-        public void deinit_peripheral()
-        {
-            if (this.sensor.IsOpen)
-            {
-                this.sensor.Close();
-                this.bodyFrameReader.FrameArrived -= Reader_FrameArrived;
-            }
-            wifi.disposeESP();//退出AP
-            uart.Uart_close();//串口关闭
-            IsOpen = false;
-        }
+        ///// <summary>
+        ///// 外围设备释放函数 
+        ///// </summary>
+        //public void deinit_peripheral()
+        //{
+        //    if (this.sensor.IsOpen)
+        //    {
+        //        this.sensor.Close();
+        //        this.bodyFrameReader.FrameArrived -= Reader_FrameArrived;
+        //    }
+        //    wifi.disposeESP();//退出AP
+        //    uart.Uart_close();//串口关闭
+        //    IsOpen = false;
+        //}
 
     }
 }

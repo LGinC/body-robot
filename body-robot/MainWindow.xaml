@@ -9,25 +9,31 @@
         Closing="Window_Closing"
         Title="body-robot" Height="600" Width="700">
     <Grid Margin="5,5,5,5">
-        <Label x:Name="Label_com" Content="COM"  Margin="50,266,0,267"  Width="Auto" Height="26" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
-        <ComboBox x:Name="comboBox_com" Margin="100,266,447,265" FontFamily="Segoe UI Semibold" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
-        <Button x:Name="B_open" Margin="570,261,52,260" RenderTransformOrigin="4,3.5" Content="open" Background="Yellow" Click="B_open_clicked">
+        <Label x:Name="Label_hostIP" Content="host IP"  Margin="85,250,540,271" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"></Label>
+        <ComboBox x:Name="comboBox_hostIP" Margin="140,255,420,276" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"></ComboBox>
+        <Label x:Name="Label_targetIP" Content="target IP"  Margin="250,250,360,271" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+        <ComboBox x:Name="comboBox_targetIP" Margin="320,255,240,276" FontFamily="Segoe UI Semibold" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        <Button x:Name="B_connect" Margin="545,250,77,270" Content="connect" Background="Yellow" Click="B_connect_clicked">
             <Button.Effect>
                 <DropShadowEffect/>
             </Button.Effect>
         </Button>
-        <Label x:Name="Label_baud" Content="Baud Rate"  Margin="0,266,0,267"  Width="70" Height="26" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
-        <ComboBox x:Name="comboBox_BaudRate" Margin="370,266,192,265" FontFamily="Segoe UI Semibold" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
-        <TextBox x:Name="TextBox_show" Margin="100,315,52,99" MaxHeight="400" MaxLength="800" MinHeight="40" MinWidth="80" FontFamily="Arial Narrow" FontSize="16" FontStyle="Oblique" FontWeight="Medium" TextWrapping="Wrap" Width="520">
-            <TextBox.Effect>
-                <DropShadowEffect/>
-            </TextBox.Effect>
+        <Label x:Name="Label_port" Content="Port"  Margin="450, 250, 190, 271" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+        <TextBox Name="TextBox_Port" Margin="490, 255, 150, 276" Text="5000" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"></TextBox>
+        <ScrollViewer Margin="100,315,52,99" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <TextBox x:Name="TextBox_show"  MaxHeight="400" MaxLength="800" MinHeight="40" MinWidth="80" FontFamily="Arial Narrow" FontSize="16" FontStyle="Oblique" FontWeight="Medium" TextWrapping="Wrap" Width="520">
+                <TextBox.Effect>
+                    <DropShadowEffect/>
+                </TextBox.Effect>
+            </TextBox>
+        </ScrollViewer>
 
-        </TextBox>
-        <TextBox x:Name="TextBox_data" Margin="100,80,52,334" MaxHeight="400" MaxLength="800" MinHeight="40" MinWidth="80" FontFamily="Arial" FontSize="16" FontWeight="Medium" TextWrapping="Wrap" Width="520" IsReadOnly="True">
-            <TextBox.Effect>
+        <ScrollViewer Margin="100,80,52,334">
+            <TextBox x:Name="TextBox_data" MaxHeight="400" MaxLength="800" MinHeight="40" MinWidth="80" FontFamily="Arial" FontSize="16" FontWeight="Medium" TextWrapping="Wrap" Width="520" IsReadOnly="True">
+             <TextBox.Effect>
                 <DropShadowEffect/>
-            </TextBox.Effect>
-        </TextBox>
+             </TextBox.Effect>
+            </TextBox>
+        </ScrollViewer>
     </Grid>
 </Window>

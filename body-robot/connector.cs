@@ -55,12 +55,12 @@ namespace body_robot
         /// <param name="port">端口</param>
         public void OpenConnection(string ip, uint port)
         {
-            if (port < 1024 || port > 65535)
+            if (port < 1024 || port > 65535)//输入端口未在正常值内抛出异常
                 throw new Exception("port端口未正确输入（1024-65535）");
-            conn = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            timeoutobject.Reset();
-            conn.ReceiveTimeout = 1000;
-            conn.SendTimeout = 1000;    
+            conn = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);//新建系统socket对象
+            timeoutobject.Reset();// 事件状态设置为非终止状态
+            conn.ReceiveTimeout = 1000;//接收超时时间设置1000ms
+            conn.SendTimeout = 1000;//发送超时时间设置1000ms    
             conn.BeginConnect(ip, (int)port, connectCallBack, state);//开始异步连接
             if(timeoutobject.WaitOne(Constants.connect_timeout, false))//当前线程阻塞connect_timeout  ms，若在此时间内进行timeoutobject.set则返回线程继续执行并返回true，否则超时后返回false
             {//在规定时间内返回
@@ -74,7 +74,7 @@ namespace body_robot
                 //conn.Shutdown(SocketShutdown.Both);
                 //conn.Disconnect(false);//关闭连接
                 conn.Close(1);
-                throw new TimeoutException("socket连接超时");
+                throw new TimeoutException("socket连接超时");//抛出异常
             }           
             conn.BeginReceive(state.buffer, 0, state.buffer.Length, 0, new AsyncCallback(ReadCallBack), null);//开始异步接收                     
         }

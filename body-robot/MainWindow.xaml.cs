@@ -151,10 +151,7 @@ namespace body_robot
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             this.bodyFrameReader = this.sensor.BodyFrameSource.OpenReader();//打开阅读器
-            comboBox_hostIP.ItemsSource = conn.getHostIP();//获取本机IP添加至combobox
-            comboBox_hostIP.SelectedIndex = comboBox_hostIP.Items.Count - 1;//默认选择最后一个
-            conn.AllIP(comboBox_hostIP.SelectedValue.ToString());//刷新当前局域网所有在线IP
-            comboBox_targetIP.ItemsSource = conn.IP_list;//添加局域网IP至combobox
+            freshIP();
             //init_peripheral();
             //String[] a = Uart.get_com();//添加串口名
             //foreach (var item in a)
@@ -166,30 +163,43 @@ namespace body_robot
         }
 
         /// <summary>
+        /// 刷新界面里的IP
+        /// </summary>
+        private void freshIP()
+        {
+            comboBox_hostIP.ItemsSource = conn.getHostIP();//获取本机IP添加至combobox
+            comboBox_hostIP.SelectedIndex = comboBox_hostIP.Items.Count - 1;//默认选择最后一个
+            conn.AllIP(comboBox_hostIP.SelectedValue.ToString());//刷新当前局域网所有在线IP
+            comboBox_targetIP.ItemsSource = conn.IP_list;//添加局域网IP至combobox
+        }
+
+        /// <summary>
         /// 按钮B_connect点击事件处理函数
         /// </summary>
         /// <param name="sender">事件发送者对象，此处为按钮对象本身</param>
         /// <param name="e">路由事件参数</param>
         private void B_connect_clicked(object sender, RoutedEventArgs e)
-        {
-            //string p = TextBox_Port.Text;
+        {            
             try
             {
                 if (conn.IsConnect == false)//点击之前为断开状态，则打开连接
                 {
                     uint port;
                     string ip = comboBox_targetIP.SelectedItem.ToString();
-                    if(UInt32.TryParse(TextBox_Port.Text,out port) == false)
+                    if(UInt32.TryParse(TextBox_Port.Text,out port) == false)//如果TextBox_Port选择的值不能转为Uint则抛出异常
                     {
                         throw new InvalidOperationException("端口Port请输入数字");
                     }                       
-                    conn.OpenConnection(ip, port);
+                    conn.OpenConnection(ip, port);//连接
+                    conn.ShowReceiveData += Conn_ShowReceiveData;//添加数据接收事件处理函数
                     B_connect.Content = "connect";                                        
                 }
                 else//点击之前为连接状态，则断开连接
                 {
-                    conn.CloseConnection();
+                    conn.CloseConnection();//断开连接
+                    conn.ShowReceiveData -= Conn_ShowReceiveData;//移除处理函数
                     B_connect.Content = "disconnect";
+                    freshIP();
                 }
             }
             catch(Exception ex)
@@ -197,6 +207,17 @@ namespace body_robot
                 MessageBox.Show(ex.ToString());
             }
 
+        }
+
+        /// <summary>
+        /// socket接收数据处理函数
+        /// </summary>
+        /// <param name="data">接收到的数据</param>
+        private void Conn_ShowReceiveData(string data)
+        {
+            this.Dispatcher.Invoke(new Action(()=>{
+                TextBox_show.AppendText(data);
+            }));
         }
 
         /// <summary>
@@ -390,6 +411,7 @@ namespace body_robot
                                     TextBox_data.AppendText("是否限制：" + item.IsRestricted + "\n");
                                     TextBox_data.ScrollToEnd();
                                 }));
+                                conn.Send(PWM);
                                 //wifi.SendPWM(PWM);
                                 //foreach (var p in position)
                                 //{

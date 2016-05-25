@@ -111,7 +111,6 @@ namespace body_robot
         /// <param name="e">elbow 肘部关节结构体</param>
         /// <param name="h">hand 手部关节结构体</param>
         /// <returns>PWM信号 0-Constants.PWM_MAX</returns>
-
         public int ToPWMshoulder( Joint s, Joint e, Joint h )//此处传入关节结构体，可获取关节类型来确定是左手还是右手
         {           
             CameraSpacePoint arm,       hand,   n1,                  n2;
@@ -263,7 +262,7 @@ namespace body_robot
                 }
                
             }
-            Console.WriteLine("{0} invalid cos:{1}\t", h.ToString(),cos);
+            Console.WriteLine("{0} invalid cos:{1}\t", h.JointType.ToString(),cos);
             return Constants.INVALID_JOINT_VALUE;
         }
 
@@ -302,7 +301,7 @@ namespace body_robot
                 }
                 return PWM;
             }
-            Console.WriteLine("{0} invalid cos:{1}\t", h.ToString(),cos);
+            Console.WriteLine("{0} invalid cos:{1}\t", h.JointType.ToString(),cos);
             return Constants.INVALID_JOINT_VALUE;
         }
         /// <summary>
@@ -342,7 +341,7 @@ namespace body_robot
                     return PWM;
                 }               
             }
-            Console.WriteLine("thigh invalid cos:{0}\t", cos);
+            Console.WriteLine("{0} thigh invalid cos:{1}\t", h.JointType.ToString(),cos);
             return Constants.INVALID_JOINT_VALUE;
         }
 
@@ -388,7 +387,7 @@ namespace body_robot
                     return PWM;
                 }
             }
-            Console.WriteLine("{0} invalid cos:{1}\t", k.ToString(), cos);
+            Console.WriteLine("{0} invalid cos:{1}\t", k.JointType.ToString(), cos);
             return Constants.INVALID_JOINT_VALUE;
         }
 

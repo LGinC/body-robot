@@ -56,7 +56,7 @@ namespace body_robot
         /// <summary>
         /// 发送每一帧由frame_count帧数据过滤而得
         /// </summary>
-        public const int frame_count = 5;
+        public const int frame_count = 7;
 
 
         /// <summary>
@@ -67,7 +67,7 @@ namespace body_robot
         /// <summary>
         /// socket连接超时时间，单位是ms
         /// </summary>
-        public const int connect_timeout = 1000;
+        public const int connect_timeout = 10000;
 
         /// <summary>
         /// socket接收超时时间，单位ms
@@ -78,5 +78,10 @@ namespace body_robot
         /// socket发送超时时间，单位是ms
         /// </summary>
         public const int send_timeout = 1000;
+
+        /// <summary>
+        /// 连接状态——成功
+        /// </summary>
+        public const string connect_success = "已连接";
     }
 }

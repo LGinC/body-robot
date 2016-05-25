@@ -32,19 +32,34 @@ namespace body_robot
         public event showReceiveData ShowReceiveData;
 
         /// <summary>
+        /// 连接完成事件
+        /// </summary>
+        public event Action connectComplete;
+
+        /// <summary>
         /// 局域网在线IP列表
         /// </summary>
-        public List<string> IP_list = new List<string>();
+        private List<string> _IP_list = new List<string>();
 
         /// <summary>
         /// socket是否连接标志，true为已连接
         /// </summary>
-        public bool IsConnect;
+        public bool IsConnect = false;
 
         /// <summary>
         /// socket异常
         /// </summary>
         private Exception socketException;
+
+        /// <summary>
+        /// 计数器，计算ping局域网主机个数
+        /// </summary>
+        private int c = 0;
+
+        /// <summary>
+        /// 刷新局域网所有在线IP完成事件 
+        /// </summary>
+        public event Action ipFreshComplete;
 
         private static ManualResetEvent timeoutobject = new ManualResetEvent(false);
 
@@ -54,29 +69,25 @@ namespace body_robot
         /// <param name="ip">目标IP地址</param>
         /// <param name="port">端口</param>
         public void OpenConnection(string ip, uint port)
-        {
+        {            
             if (port < 1024 || port > 65535)//输入端口未在正常值内抛出异常
                 throw new Exception("port端口未正确输入（1024-65535）");
-            conn = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);//新建系统socket对象
-            timeoutobject.Reset();// 事件状态设置为非终止状态
-            conn.ReceiveTimeout = 1000;//接收超时时间设置1000ms
-            conn.SendTimeout = 1000;//发送超时时间设置1000ms    
+            conn = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);//新建系统socket对象     
+            conn.ReceiveTimeout = Constants.receive_timeout;//接收超时时间设置
+            conn.SendTimeout = Constants.send_timeout;//发送超时时间设置
             conn.BeginConnect(ip, (int)port, connectCallBack, state);//开始异步连接
             if(timeoutobject.WaitOne(Constants.connect_timeout, false))//当前线程阻塞connect_timeout  ms，若在此时间内进行timeoutobject.set则返回线程继续执行并返回true，否则超时后返回false
             {//在规定时间内返回
-                if (conn.Connected == false)//连接失败
+                if (IsConnect == false)//连接失败
                 {
                     throw socketException;//抛出socketException异常
                 }
             }
             else//超时返回
             {
-                //conn.Shutdown(SocketShutdown.Both);
-                //conn.Disconnect(false);//关闭连接
-                conn.Close(1);
                 throw new TimeoutException("socket连接超时");//抛出异常
             }           
-            conn.BeginReceive(state.buffer, 0, state.buffer.Length, 0, new AsyncCallback(ReadCallBack), null);//开始异步接收                     
+            conn.BeginReceive(state.buffer, 0, state.buffer.Length, 0, new AsyncCallback(ReadCallBack), state);//开始异步接收                     
         }
 
         /// <summary>
@@ -87,14 +98,21 @@ namespace body_robot
         {
             try
             {             
-                if (conn.Connected == true)//如果已经连接
+                if (conn != null)//如果已经连接
                 {
                     conn.EndConnect(ar);//结束异步连接
+                    IsConnect = true;
+                    connectComplete();//触发连接完成事件
                 }               
             }
             catch(Exception e)
             {
-                socketException = e;//将当前异常赋给socketException
+                Console.WriteLine(e.ToString());
+                if (e.Message.Contains("the target machine actively refused it"))//如果当前异常信息里包含对应内容
+                    socketException = new Exception("连接失败，目标机器拒绝访问");//新建异常，目的是为了在提示窗口显示中文
+                else
+                    socketException = e;//将当前异常赋给socketException
+                IsConnect = false;
             }
             finally//无论是否连上
             {
@@ -107,9 +125,12 @@ namespace body_robot
         /// </summary>
         public void CloseConnection()
         {
+            IsConnect = false;
+            _IP_list.Clear();
             conn.EndReceive(state.ar);//结束异步接收
             conn.Disconnect(false);//关闭连接，不再使用此socket
             conn.Dispose();//释放所占资源
+            
         }
 
         /// <summary>
@@ -122,14 +143,24 @@ namespace body_robot
             this.state.ar = ar;//接收异步操作赋值
             ShowReceiveData(receive);//调用数据接收事件
             State state = (State)ar.AsyncState;//获取自定义容器对象
-            int m_read = conn.EndReceive(ar);//结束接收
-            if (m_read > 0)//接收到的字节数大于0
+            try
             {
-                receive = Encoding.Default.GetString(state.buffer);//将缓冲区数据转为string
-                receive = receive.Substring(0, receive.IndexOf('\u0000'));
-                ShowReceiveData(receive);//调用数据接收事件                         
-                conn.BeginReceive(state.buffer, 0, state.buffer.Length, 0, ReadCallBack, state);//开始异步接收
+                int m_read = conn.EndReceive(ar);//结束接收
+                if (m_read > 0)//接收到的字节数大于0
+                {
+                    receive = Encoding.Default.GetString(state.buffer);//将缓冲区数据转为string
+                    receive = receive.Substring(0, receive.IndexOf('\u0000'));
+                    ShowReceiveData(receive);//调用数据接收事件                         
+                    conn.BeginReceive(state.buffer, 0, state.buffer.Length, 0, ReadCallBack, state);//开始异步接收
+                    state.ar = ar;
+                }
             }
+            catch(Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            
+
         }
 
         /// <summary>
@@ -140,7 +171,6 @@ namespace body_robot
         {
             byte[] data = Encoding.Default.GetBytes(message);//将message转为byte[]
             conn.BeginSend(data, 0, data.Length, 0, SendCallback, state);//开始异步发送
-
         }
 
         /// <summary>
@@ -153,13 +183,14 @@ namespace body_robot
         }
 
         /// <summary>
-        /// 
+        /// 获取在ip这个网段内所有在线的ip，并添加至IP_list
         /// </summary>
-        /// <param name="ip"></param>
+        /// <param name="ip">主机所在局域网IP</param>
         public void AllIP(string ip)
         {
             string IP_C = ip.Remove(ip.LastIndexOf('.'));//去掉最后一个.后面的数字，即去掉主机号，后面ping通的就添加
-            //IP_list.Clear();//清除IP列表
+            _IP_list.Clear();//清除IP列表
+            c = 0;
             try
             {
                 for (int i = 0; i <= 255; i++)
@@ -189,7 +220,7 @@ namespace body_robot
                 if(!i.IsIPv6LinkLocal && !i.IsIPv6Teredo)//如果是非IPv6地址
                 {
                     ip.Add(i.ToString());//添加至list
-                    Console.WriteLine(ip);
+                   //Console.WriteLine(i.ToString());
                 }
             }
             return ip;
@@ -202,9 +233,29 @@ namespace body_robot
         /// <param name="e">ping完成事件参数</param>
         private void Ping_PingCompleted(object sender, PingCompletedEventArgs e)
         {
+            string ip = e.Reply.Address.ToString();
             if (e.Reply.Status == IPStatus.Success)//如果ping成功
-                IP_list.Add(e.Reply.Address.ToString());//添加返回IP至列表
+            {
+                if(!_IP_list.Contains(ip))//当返回成功IP不在列表内时添加
+                {
+                    _IP_list.Add(ip);//添加返回IP至列表
+                }                
+            }
+            if(c++ == 255)//局域网最后一个IPping结束
+            {
+                _IP_list.Sort();//列表排序
+                ipFreshComplete();//触发ipFreshComplete事件
+            }                
         }
+
+        /// <summary>
+        /// 私有字段IP_list的get方法
+        /// </summary>
+        public List<string> IP_list
+        {
+            get { return _IP_list; }
+        }
+        
     }
 
     /// <summary>

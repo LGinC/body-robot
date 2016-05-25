@@ -8,32 +8,170 @@
         Loaded="Window_Loaded"
         Closing="Window_Closing"
         Title="body-robot" Height="600" Width="700">
-    <Grid Margin="5,5,5,5">
-        <Label x:Name="Label_hostIP" Content="host IP"  Margin="85,250,540,271" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"></Label>
-        <ComboBox x:Name="comboBox_hostIP" Margin="140,255,420,276" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"></ComboBox>
-        <Label x:Name="Label_targetIP" Content="target IP"  Margin="250,250,360,271" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
-        <ComboBox x:Name="comboBox_targetIP" Margin="320,255,240,276" FontFamily="Segoe UI Semibold" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
-        <Button x:Name="B_connect" Margin="545,250,77,270" Content="connect" Background="Yellow" Click="B_connect_clicked">
-            <Button.Effect>
-                <DropShadowEffect/>
-            </Button.Effect>
-        </Button>
-        <Label x:Name="Label_port" Content="Port"  Margin="450, 250, 190, 271" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
-        <TextBox Name="TextBox_Port" Margin="490, 255, 150, 276" Text="5000" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"></TextBox>
-        <ScrollViewer Margin="100,315,52,99" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-        <TextBox x:Name="TextBox_show"  MaxHeight="400" MaxLength="800" MinHeight="40" MinWidth="80" FontFamily="Arial Narrow" FontSize="16" FontStyle="Oblique" FontWeight="Medium" TextWrapping="Wrap" Width="520">
-                <TextBox.Effect>
-                    <DropShadowEffect/>
-                </TextBox.Effect>
-            </TextBox>
-        </ScrollViewer>
+    <Grid>
+        <Image Source="dhf.png" Stretch="Fill"></Image>
+        <Grid  Margin="5">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="3*"></RowDefinition>
+                <RowDefinition Height="*"></RowDefinition>
+                <RowDefinition Height="3*"></RowDefinition>
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                    <ColumnDefinition></ColumnDefinition>
+                </Grid.ColumnDefinitions>
 
-        <ScrollViewer Margin="100,80,52,334">
-            <TextBox x:Name="TextBox_data" MaxHeight="400" MaxLength="800" MinHeight="40" MinWidth="80" FontFamily="Arial" FontSize="16" FontWeight="Medium" TextWrapping="Wrap" Width="520" IsReadOnly="True">
-             <TextBox.Effect>
-                <DropShadowEffect/>
-             </TextBox.Effect>
-            </TextBox>
-        </ScrollViewer>
+                <Grid Grid.Column="0" Grid.ColumnSpan="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition></RowDefinition>
+                        <RowDefinition></RowDefinition>
+                        <RowDefinition></RowDefinition>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+
+                    <Label x:Name="Label_hostIP" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4" Content="host IP" HorizontalAlignment="Right" HorizontalContentAlignment="Right" VerticalContentAlignment="Center"></Label>
+
+                    <ComboBox x:Name="comboBox_hostIP" Grid.Row="1" Grid.Column="4" Grid.ColumnSpan="6" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Opacity="0.9" SelectionChanged="comboBox_hostIP_SelectionChanged">
+                        <ComboBox.Background>
+                            <LinearGradientBrush EndPoint="0,1" Opacity="0.7" StartPoint="0,0">
+                                <GradientStop Color="#FFF3F3F3" Offset="0"/>
+                                <GradientStop Color="#FFEBEBEB" Offset="0.5"/>
+                                <GradientStop Color="#FFDDDDDD" Offset="0.5"/>
+                                <GradientStop Color="#FFCDCDCD" Offset="1"/>
+                            </LinearGradientBrush>
+                        </ComboBox.Background>
+                    </ComboBox>
+                </Grid>
+
+                <Grid Grid.Column="5" Grid.ColumnSpan="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition></RowDefinition>
+                        <RowDefinition></RowDefinition>
+                        <RowDefinition></RowDefinition>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>                        
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <Label x:Name="Label_targetIP" Content="target IP"  Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"  HorizontalContentAlignment="Right" HorizontalAlignment="Right" VerticalContentAlignment="Center"/>
+
+                    <ComboBox x:Name="comboBox_targetIP" Grid.Row="1" Grid.Column="4" Grid.ColumnSpan="6" FontFamily="Segoe UI Semibold" Opacity="0.9" >
+                        <ComboBox.Background>
+                            <LinearGradientBrush EndPoint="0,1" Opacity="0.7" StartPoint="0,0">
+                                <GradientStop Color="#FFF3F3F3" Offset="0"/>
+                                <GradientStop Color="#FFEBEBEB" Offset="0.5"/>
+                                <GradientStop Color="#FFDDDDDD" Offset="0.5"/>
+                                <GradientStop Color="#FFCDCDCD" Offset="1"/>
+                            </LinearGradientBrush>
+                        </ComboBox.Background>
+                    </ComboBox>
+                </Grid>
+
+                <Grid Grid.Column="10" Grid.ColumnSpan="3">
+                    <Grid.RowDefinitions>
+                        <RowDefinition></RowDefinition>
+                        <RowDefinition></RowDefinition>
+                        <RowDefinition></RowDefinition>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+
+                    <Label x:Name="Label_port" Content="Port" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" HorizontalContentAlignment="Right" VerticalContentAlignment="Center" />
+
+                    <TextBox Name="TextBox_Port" Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="3"  Text="5000" VerticalContentAlignment="Center" MaxHeight="80" MaxWidth="120" Opacity="0.9">
+                        <TextBox.Background>
+                            <SolidColorBrush Color="White" Opacity="0.7"/>
+                        </TextBox.Background>
+                    </TextBox>
+                    
+                </Grid>
+
+                <Grid Grid.Column="13" Grid.ColumnSpan="3">
+                    <Grid.RowDefinitions>
+                        <RowDefinition></RowDefinition>
+                        <RowDefinition></RowDefinition>
+                        <RowDefinition></RowDefinition>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="B_connect" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Content="connect" 
+                        HorizontalAlignment="Center" Click="B_connect_clicked"  MaxHeight="80" MaxWidth="120">
+                        <Button.Background>
+                            <SolidColorBrush Color="Yellow"/>
+                        </Button.Background>
+                        <Button.Effect>
+                            <DropShadowEffect/>
+                        </Button.Effect>
+                    </Button>
+                </Grid>
+            </Grid>
+            <ScrollViewer Grid.Row="2" Margin="50"  MaxWidth="1000" MaxHeight="600" MinHeight="60" MinWidth="100" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <TextBox x:Name="TextBox_show" FontFamily="Arial Narrow" FontSize="16" FontStyle="Oblique" FontWeight="Medium" TextWrapping="Wrap" Opacity="0.8">
+                    <TextBox.Background>
+                        <SolidColorBrush Color="#FFC8D4D4" Opacity="0.4"/>
+                    </TextBox.Background>
+                    <TextBox.Effect>
+                        <DropShadowEffect/>
+                    </TextBox.Effect>
+                </TextBox>
+            </ScrollViewer>
+
+            <ScrollViewer Grid.Row="0" Margin="50" MaxWidth="1000" MaxHeight="600" MinHeight="60" MinWidth="100" x:Name="scroller_dataShow">
+                <TextBox x:Name="TextBox_data" FontFamily="Arial" FontSize="16" FontWeight="Medium" TextWrapping="Wrap" IsReadOnly="True" Opacity="0.8">
+                    <TextBox.Background>
+                        <SolidColorBrush Color="#FFC8D4D4" Opacity="0.4"/>
+                    </TextBox.Background>
+                    <TextBox.Effect>
+                        <DropShadowEffect/>
+                    </TextBox.Effect>
+                </TextBox>
+            </ScrollViewer>
+        </Grid>
     </Grid>
 </Window>

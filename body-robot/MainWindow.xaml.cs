@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Linq;
 
 namespace body_robot
 {
@@ -19,7 +20,7 @@ namespace body_robot
         ///// 串口对象
         ///// </summary>
         //private Uart uart;
-    
+
         ///// <summary>
         ///// wifi模块对象
         ///// </summary>
@@ -77,6 +78,15 @@ namespace body_robot
         private System.Collections.Generic.List<int[]> positions;
 
         /// <summary>
+        /// 连接状态
+        /// </summary>
+        private string status;
+
+        /// <summary>
+        /// 数据帧处理是否是第一次进入
+        /// </summary>
+        private bool IsFirst = true;
+        /// <summary>
         /// 画刷
         /// </summary>
         //private readonly Brush[] brushes;
@@ -105,7 +115,6 @@ namespace body_robot
             this.bones = new List<Tuple<JointType, JointType>>();
             ToAngle = new angle();
             joints = new Joint[Body.JointCount];
-            position = new int[Constants.POSITION_LENTH];
             positions = new List<int[]>();
             this.sensor = KinectSensor.GetDefault();
             conn = new Connector();//新建TCP连接对象
@@ -151,15 +160,12 @@ namespace body_robot
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             this.bodyFrameReader = this.sensor.BodyFrameSource.OpenReader();//打开阅读器
-            freshIP();
-            //init_peripheral();
-            //String[] a = Uart.get_com();//添加串口名
-            //foreach (var item in a)
-            //{
-            //    comboBox_com.Items.Add(item);
-            //}
-            //comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;
-            //B_open_clicked(B_open, new RoutedEventArgs());//调用打开按钮点击事件
+            this.sensor.Open();//打开kinect传感器      
+            if (this.bodyFrameReader != null)//如果body数据帧阅读器存在则添加数据帧到达事件处理函数
+            {
+                this.bodyFrameReader.FrameArrived += Reader_FrameArrived;
+            }
+            freshIP();//刷新IP和控件
         }
 
         /// <summary>
@@ -168,9 +174,8 @@ namespace body_robot
         private void freshIP()
         {
             comboBox_hostIP.ItemsSource = conn.getHostIP();//获取本机IP添加至combobox
-            comboBox_hostIP.SelectedIndex = comboBox_hostIP.Items.Count - 1;//默认选择最后一个
-            conn.AllIP(comboBox_hostIP.SelectedValue.ToString());//刷新当前局域网所有在线IP
-            comboBox_targetIP.ItemsSource = conn.IP_list;//添加局域网IP至combobox
+            comboBox_hostIP.SelectedIndex = comboBox_hostIP.Items.Count - 1;//默认选择最后一个       
+
         }
 
         /// <summary>
@@ -179,34 +184,56 @@ namespace body_robot
         /// <param name="sender">事件发送者对象，此处为按钮对象本身</param>
         /// <param name="e">路由事件参数</param>
         private void B_connect_clicked(object sender, RoutedEventArgs e)
-        {            
+        {
             try
             {
                 if (conn.IsConnect == false)//点击之前为断开状态，则打开连接
                 {
                     uint port;
                     string ip = comboBox_targetIP.SelectedItem.ToString();
-                    if(UInt32.TryParse(TextBox_Port.Text,out port) == false)//如果TextBox_Port选择的值不能转为Uint则抛出异常
+                    if (UInt32.TryParse(TextBox_Port.Text, out port) == false)//如果TextBox_Port选择的值不能转为Uint则抛出异常
                     {
                         throw new InvalidOperationException("端口Port请输入数字");
-                    }                       
-                    conn.OpenConnection(ip, port);//连接
+                    }
+                    conn.connectComplete += Conn_connectComplete;//增加连接完成事件处理函数              
+                    conn.OpenConnection(ip, port);//连接    
                     conn.ShowReceiveData += Conn_ShowReceiveData;//添加数据接收事件处理函数
-                    B_connect.Content = "connect";                                        
+                    B_connect.Background = Brushes.Red;
+                    B_connect.Content = "connected";
+
                 }
                 else//点击之前为连接状态，则断开连接
                 {
+                    freshIP();
                     conn.CloseConnection();//断开连接
                     conn.ShowReceiveData -= Conn_ShowReceiveData;//移除处理函数
+                    conn.connectComplete -= Conn_connectComplete;//移除连接完成事件处理函数
                     B_connect.Content = "disconnect";
-                    freshIP();
+                    B_connect.Background = Brushes.Yellow;
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString(), "错误");
+            }
+
+        }
+
+        /// <summary>
+        /// socket连接完成事件处理函数
+        /// </summary>
+        private void Conn_connectComplete()
+        {
+            status = Constants.connect_success;
+            Console.WriteLine(status);
+            try
+            {
+                conn.Send(Constants.init_PWM);//发送初始PWM
+            }
+            catch (Exception ex)
             {
                 MessageBox.Show(ex.ToString());
             }
-
         }
 
         /// <summary>
@@ -215,7 +242,8 @@ namespace body_robot
         /// <param name="data">接收到的数据</param>
         private void Conn_ShowReceiveData(string data)
         {
-            this.Dispatcher.Invoke(new Action(()=>{
+            this.Dispatcher.Invoke(new Action(() =>
+            {
                 TextBox_show.AppendText(data);
             }));
         }
@@ -227,7 +255,13 @@ namespace body_robot
         /// <param name="e"></param>
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)//窗口关闭时回调
         {
-           // deinit_peripheral();
+            if (conn.IP_list.Count == 0)
+                conn.CloseConnection();
+            if (this.sensor.IsOpen)
+            {
+                this.sensor.Close();
+                this.bodyFrameReader.FrameArrived -= Reader_FrameArrived;
+            }
             if (this.bodyFrameReader != null)//body数据帧阅读器存在则关闭
             {
                 this.bodyFrameReader.Dispose();//阅读器释放资源
@@ -248,21 +282,18 @@ namespace body_robot
         /// <param name="e"></param>
         private void Reader_FrameArrived(object sender, BodyFrameArrivedEventArgs e)
         {
-            Stopwatch sw = new Stopwatch(); //新建计时器
-            sw.Start();                     //开始计时器
             if (conn.IsConnect == true)    //待socket连接完成再进行数据处理
-            {
-                int[] position_pre = new int[Constants.POSITION_LENTH];   //新建PWM数组                
+            {                         
                 using (BodyFrame b = e.FrameReference.AcquireFrame())   //获取body数据帧，using会在括号结束后自动销毁申请的数据结构
                 {
                     try
                     {
                         body = new Body[b.BodyCount];   //新建body数组
-                        b.GetAndRefreshBodyData(body);  //从body数据帧里获取body对象放入body数组
+                        b.GetAndRefreshBodyData(body);  //从body数据帧里获取body对象放入body数组                        
                     }
                     catch (Exception ie)
                     {
-                        Console.WriteLine(ie.ToString());
+                        Console.WriteLine(ie.Message);
                         return;
                     }
                 }
@@ -274,22 +305,22 @@ namespace body_robot
                     {
                         if (item.JointOrientations[JointType.Head].Orientation.Z < 2) //Z轴距离大于2不处理
                         {
+                            int[] position_pre = new int[Constants.POSITION_LENTH];   //新建PWM数组      
 
-
-                            if (TrackID == 9)
+                            if (TrackID == 9)//moren
                             {
-                                Console.WriteLine("tracking ID:" + TrackID.ToString());
                                 TrackID = item.TrackingId;
                             }
 
                             if (TrackID == item.TrackingId)   //只有当TrackID和当前ID一致时进行处理
                             {
-                                //Wifi_DataShow("tracking ID:" + TrackID.ToString());
+                               
                                 int c = 0;
-                                foreach (var j in item.Joints)
+                                foreach (var j in item.Joints)//遍历所有关节结构体
                                 {
-                                    joints[c++] = ToAngle.filter(j.Value);
+                                    joints[c++] = ToAngle.filter(j.Value);//过滤
                                 }
+                                
                                 //Console.WriteLine("State:{0}    x:{1} y:{2}", item.LeanTrackingState, item.Lean.X, item.Lean.Y);
                                 position_pre[(int)angle.servos.ShoulderRight] = ToAngle.ToPWMshoulder(joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight], joints[(int)JointType.HandRight]);
                                 position_pre[(int)angle.servos.ShoulderLeft] = ToAngle.ToPWMshoulder(joints[(int)JointType.ShoulderLeft], joints[(int)JointType.ElbowLeft], joints[(int)JointType.HandLeft]);
@@ -305,7 +336,7 @@ namespace body_robot
                                 position_pre[(int)angle.servos.AnkleRight] = ToAngle.ToPWM_ankle(joints[(int)JointType.AnkleRight]);
                                 position_pre[(int)angle.servos.KneeLeft] = ToAngle.ToPWM_knee(joints[(int)JointType.HipLeft], joints[(int)JointType.KneeLeft], joints[(int)JointType.AnkleLeft]);
                                 position_pre[(int)angle.servos.AnkleLeft] = ToAngle.ToPWM_ankle(joints[(int)JointType.AnkleLeft]);
-
+                                #endregion
                                 if (position_pre[(int)angle.servos.HipRight] == 0)//当左右髋读取值为0时，赋默认值60
                                 {
                                     position_pre[(int)angle.servos.HipRight] = 60;
@@ -314,8 +345,17 @@ namespace body_robot
                                 {
                                     position_pre[(int)angle.servos.HipLeft] = 60;
                                 }
+                                if(IsFirst)//如果是第一次进入
+                                {
+                                    Console.WriteLine("第一次进入");
+                                    IsFirst = false;//设置第一次进入标志位false
+                                    position = position_pre;//直接将本次计算所得数据赋给上一组数据
+                                    return;//返回
+                                }
                                 difference = true;
                                 int diff = 0;
+
+                                #region 舵机PMW异常为0，数据帧丢弃
                                 for (int i = 0; i < Constants.POSITION_LENTH; i++)
                                 {
                                     switch (position_pre[i])
@@ -326,45 +366,48 @@ namespace body_robot
                                                 return;//非脚部和头部舵机  值为0，计算异常，数据帧丢弃
                                             }
                                             break;
-                                        case (int)Constants.INVALID_JOINT_VALUE:
-                                            return;//有舵机值异常，数据帧丢弃   
+                                        case Constants.INVALID_JOINT_VALUE:
+                                            return;//有舵机值异常，数据帧丢                                          
                                         default:
                                             break;
                                     }
-                                    diff = Math.Abs(position[i] - position_pre[i]);//计算本帧舵机PWM值和上帧的差值
+                                    #endregion
 
+                                    #region 若计算的PWM值变化小于5，返回不发送
+                                    diff = Math.Abs(position[i] - position_pre[i]);//计算本帧舵机PWM值和上帧的差值
                                     if (diff > 5)//若无任何舵机变化值大于5则不发送
                                         difference = false;
-                                }
-                                if (position[0] != 0)//若position数组值不为0则说明不是第一次进入,因为int数组初始化默认值为0
-                                {
                                     if (diff > 40)//变化值大于40说明计算异常，数据帧丢弃
                                         return;
                                 }
                                 position = position_pre;
-                                                                //开始执行PWM算术平均滤波
-                                speed++;                                        
-                                if (speed < Constants.frame_count)
-                                {
-                                    positions.Add(position);
-                                    return;
-                                }
-                                else
-                                {
-                                    speed = 0;
-                                    positions.Add(position);
-                                    position = filter_position(positions);
-                                    positions.Clear();
-                                }
-                                position[Constants.POSITION_LENTH - 1] = 0;
-                                if (difference == true)
+                                if (difference == false)//无变化
                                 {
                                     difference = true;
-                                    return;
+                                    return;//返回
                                 }
-                                ToAngle.PoseDect(ref position);
+                                #endregion
+                                #region 平均滤波                       
+                                                                        //开始执行PWM算术平均滤波
+                                if (speed++ < Constants.frame_count)//先判断，再自增
+                                {
+                                    positions.Add(position);//把当前舵机值添加至列表
+                                    return;//返回
+                                }
+                                else//采集处理了超过frame_count帧数据
+                                {
+                                    speed = 0;//复位计数器
+                                    positions.Add(position);//添加当前帧至列表
+                                    position = filter_position(positions);//执行算术平均滤波
+                                    positions.Clear();//清除列表
+                                }
+                                #endregion
+
+                                #region 姿态检测
+                                position[Constants.POSITION_LENTH - 1] = 0;//设置position数组尾部
+                                ToAngle.PoseDect(ref position);//姿态检测
                                 String PWM = "";
-                                for (int i = 0; i < Constants.POSITION_LENTH - 1; i++)
+                                for (int i = 0; i < Constants.POSITION_LENTH - 1; i++)//组成PWM数据帧
                                 {
                                     if (position[i] >= 0 && position[i] < 10)//1-9补两个0
                                     {
@@ -389,40 +432,36 @@ namespace body_robot
                                 {
                                     PWM = PWM.Insert(0, "sb");
                                 }
+                                #endregion
 
-
-                                //    foreach (var ite in position)
-                                //    {
-                                //        Console.Write(ite + "\t");
-                                //        if (ite < 0 || ite > 255)
-                                //        {
-                                //            Console.Write("\n");
-                                //            return;
-                                //        }
-                                //    }
-
-                                this.Dispatcher.Invoke(new Action(() =>
+                                #region PWM数据帧发送和显示
+                                this.Dispatcher.Invoke(new Action(() => //在与 Dispatcher 关联的线程上同步执行指定的委托
                                 {
-                                        //String p;
-                                        //TextBox_data.AppendText(PWM.Substring(0, 2));
-                                        //p = System.Text.RegularExpressions.Regex.Replace(PWM.Substring(2, 51), @".{3}","$0 ");
-                                        //TextBox_data.AppendText(p + "\n");
-                                        TextBox_data.AppendText(PWM + "\n");
-                                    TextBox_data.AppendText("是否限制：" + item.IsRestricted + "\n");
-                                    TextBox_data.ScrollToEnd();
+                                    /*  在 WPF 中，只有创建 DispatcherObject 的线程才能访问该对象。例如，一个从主 UI 线程派生的后台线程不能更新在该 UI 线程上创建的 Button 的内容。为了使该后台线程能够访问 Button 的 Content 属性，该后台线程必须将此工作委托给与该 UI 线程关联的 Dispatcher。它使用Invoke 或 BeginInvoke完成。Invoke是同步，BeginInvoke 是异步。该操作将按指定的 DispatcherPriority 添加到 Dispatcher 的事件队列中。
+                                  Invoke 是同步操作；因此，直到回调返回之后才会将控制权返回给调用对象。              */
+
+                                    //String p;
+                                    //TextBox_data.AppendText(PWM.Substring(0, 2));
+                                    //p = System.Text.RegularExpressions.Regex.Replace(PWM.Substring(2, 51), @".{3}","$0 ");
+                                    //TextBox_data.AppendText(p + "\n");
+                                    TextBox_data.AppendText(PWM + "\n");//textbox追加PWM
+                                    scroller_dataShow.ScrollToEnd();//滚动至尾部                             
                                 }));
-                                conn.Send(PWM);
-                                //wifi.SendPWM(PWM);
-                                //foreach (var p in position)
-                                //{
-                                //    Console.Write(p + " ");
-                                //}                                     
-                                //Console.Write("\n");
+
+                                try
+                                {
+                                    conn.Send(PWM);
+                                }
+                                catch (Exception ex)
+                                {
+                                    MessageBox.Show(ex.ToString());
+                                }
+                                #endregion
                             }
                         }
 
                     }
-                    #endregion
+
                 }
 
             }
@@ -450,6 +489,30 @@ namespace body_robot
                 s[i] = s[i] / positions.Count;
             }
             return s;
+        }
+
+
+        /// <summary>
+        /// comboBox选择项改变事件处理函数
+        /// </summary>
+        /// <param name="sender">发送者对象，这里是combobox本身</param>
+        /// <param name="e">路由事件参数</param>
+        private void comboBox_hostIP_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            conn.ipFreshComplete += targetIP_change;//添加IP刷新完成事件处理函数
+            conn.AllIP(comboBox_hostIP.SelectedValue.ToString());//更新局域网在线IP
+        }
+
+        /// <summary>
+        /// 添加IP刷新完成事件处理函数
+        /// </summary>
+        private void targetIP_change()
+        {
+            comboBox_targetIP.ItemsSource = null;//清空comboBox里的选项
+            comboBox_targetIP.ItemsSource = conn.IP_list;//重新添加
+            comboBox_targetIP.SelectedIndex = comboBox_targetIP.Items.Count - 1;//默认选择最后一个
+            conn.ipFreshComplete -= targetIP_change;//删除处理函数
+            
         }
 
         ///// <summary>

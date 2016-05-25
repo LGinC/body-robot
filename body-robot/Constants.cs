@@ -56,7 +56,7 @@ namespace body_robot
         /// <summary>
         /// 发送每一帧由frame_count帧数据过滤而得
         /// </summary>
-        public const int frame_count = 7;
+        public const int frame_count = 10;
 
 
         /// <summary>

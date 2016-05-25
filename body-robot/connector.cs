@@ -61,6 +61,16 @@ namespace body_robot
         /// </summary>
         public event Action ipFreshComplete;
 
+        /// <summary>
+        /// socket连接关闭事件
+        /// </summary>
+        public event Action ConnectClose;
+
+        /// <summary>
+        /// 自定义比较器对象
+        /// </summary>
+        private IpComparer comparer = new IpComparer();
+
         private static ManualResetEvent timeoutobject = new ManualResetEvent(false);
 
         /// <summary>
@@ -158,6 +168,11 @@ namespace body_robot
             catch(Exception e)
             {
                 Console.WriteLine(e.ToString());
+                if(e.Message.Contains("An existing connection was forcibly closed by the remote host"))
+                {
+                    ConnectClose();//触发连接关闭事件
+                }
+
             }
             
 
@@ -243,7 +258,7 @@ namespace body_robot
             }
             if(c++ == 255)//局域网最后一个IPping结束
             {
-                _IP_list.Sort();//列表排序
+                _IP_list.Sort(comparer);//列表排序
                 ipFreshComplete();//触发ipFreshComplete事件
             }                
         }
@@ -274,4 +289,43 @@ namespace body_robot
         /// </summary>
         public byte[] buffer = new byte[2048];
     }
+
+    /// <summary>
+    /// 自定义比较器类，用于局域网IP比较，只对IP最后的4位，即主机号进行比较
+    /// </summary>
+    class IpComparer : IComparer<string>
+    {
+        int IComparer<string>.Compare(string x, string y)
+        {
+            
+            if (x == null)
+            {
+                if (y == null)
+                {
+                    return 0;//相等
+                }
+                else
+                {
+                    return -1;//小于
+                }
+            }
+            else
+            {
+                if (y == null)
+                {
+                    return 1;//大于
+                }
+                else
+                {
+                    string a = x.Remove(0, x.LastIndexOf(".") + 1);//移除最后一个.（包括.）之前的部分
+                    string b = y.Remove(0, y.LastIndexOf(".") + 1);
+                    Int32 i = Convert.ToInt32(a);
+                    Int32 j = Convert.ToInt32(b);
+                    return i - j;
+                }
+            }
+
+        }
+    }
+
 }

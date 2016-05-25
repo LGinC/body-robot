@@ -56,6 +56,12 @@ namespace body_robot
         /// </summary>
         private BodyFrameReader bodyFrameReader;
 
+
+        /// <summary>
+        /// 上次PWM信号和本次PWM是否接近标志，true为接近，不发送PWM，false为差距较大，发送PWM
+        /// </summary>
+        private bool difference = false;
+
         /// <summary>
         /// 追踪者ID
         /// </summary>
@@ -104,8 +110,6 @@ namespace body_robot
         /// 用于计算舵机PWM的angle对象
         /// </summary>
         private angle ToAngle;
-
-        private bool IsConnect = false;
         #endregion
         /// <summary>
         /// 主窗口构造函数
@@ -199,7 +203,6 @@ namespace body_robot
                     conn.connectComplete += Conn_connectComplete;//增加连接完成事件处理函数              
                     conn.OpenConnection(ip, port);//连接    
                     conn.ShowReceiveData += Conn_ShowReceiveData;//添加数据接收事件处理函数
-                    conn.ConnectClose += Conn_ConnectClose;
                     B_connect.Background = Brushes.Red;
                     B_connect.Content = "connected";
 
@@ -212,7 +215,6 @@ namespace body_robot
                     conn.connectComplete -= Conn_connectComplete;//移除连接完成事件处理函数
                     B_connect.Content = "disconnect";
                     B_connect.Background = Brushes.Yellow;
-                    IsConnect = false;
                 }
             }
             catch (Exception ex)
@@ -223,15 +225,6 @@ namespace body_robot
         }
 
         /// <summary>
-        /// 连接关闭处理函数
-        /// </summary>
-        private void Conn_ConnectClose()
-        {
-            IsConnect = false;
-            MessageBox.Show("连接已关闭","警告");
-        }
-
-        /// <summary>
         /// socket连接完成事件处理函数
         /// </summary>
         private void Conn_connectComplete()
@@ -239,7 +232,8 @@ namespace body_robot
             status = Constants.connect_success;
             try
             {
-                IsConnect = true;
+                conn.Send(Constants.init_PWM);//发送初始PWM
+                                              // Console.WriteLine(status);
             }
             catch (Exception ex)
             {
@@ -293,8 +287,7 @@ namespace body_robot
         /// <param name="e"></param>
         private void Reader_FrameArrived(object sender, BodyFrameArrivedEventArgs e)
         {
-            //if(false)
-            if (IsConnect == true)    //待socket连接完成再进行数据处理
+            if (conn.IsConnect == true)    //待socket连接完成再进行数据处理
             {
                 using (BodyFrame b = e.FrameReference.AcquireFrame())   //获取body数据帧，using会在括号结束后自动销毁申请的数据结构
                 {
@@ -344,11 +337,19 @@ namespace body_robot
                                 position_pre[(int)angle.servos.HipLeft] =       ToAngle.ToPWM_hip(    joints[(int)JointType.HipLeft],       joints[(int)JointType.KneeLeft]);
                                 position_pre[(int)angle.servos.ThighRight] =    ToAngle.ToPWM_thigh(  joints[(int)JointType.HipRight],      joints[(int)JointType.KneeRight]);
                                 position_pre[(int)angle.servos.ThighLeft] =     ToAngle.ToPWM_thigh(  joints[(int)JointType.HipLeft],       joints[(int)JointType.KneeLeft]);
-                                //position_pre[(int)angle.servos.KneeRight] =     ToAngle.ToPWM_knee(   joints[(int)JointType.HipRight],      joints[(int)JointType.KneeRight], joints[(int)JointType.AnkleRight]);
-                                //position_pre[(int)angle.servos.KneeLeft] =      ToAngle.ToPWM_knee(   joints[(int)JointType.HipLeft],       joints[(int)JointType.KneeLeft],  joints[(int)JointType.AnkleLeft]);
+                                position_pre[(int)angle.servos.KneeRight] =     ToAngle.ToPWM_knee(   joints[(int)JointType.HipRight],      joints[(int)JointType.KneeRight], joints[(int)JointType.AnkleRight]);
+                                position_pre[(int)angle.servos.KneeLeft] =      ToAngle.ToPWM_knee(   joints[(int)JointType.HipLeft],       joints[(int)JointType.KneeLeft],  joints[(int)JointType.AnkleLeft]);
                                 //position_pre[(int)angle.servos.AnkleRight] =    ToAngle.ToPWM_ankle(  joints[(int)JointType.AnkleRight]);
                                 //position_pre[(int)angle.servos.AnkleLeft] =     ToAngle.ToPWM_ankle(  joints[(int)JointType.AnkleLeft]);
                                 #endregion
+                                if (position_pre[(int)angle.servos.HipRight] == 0)//当左右髋读取值为0时，赋默认值60
+                                {
+                                    position_pre[(int)angle.servos.HipRight] = 60;
+                                }
+                                if (position_pre[(int)angle.servos.HipLeft] == 0)
+                                {
+                                    position_pre[(int)angle.servos.HipLeft] = 60;
+                                }
                                 //Console.WriteLine("舵机PMW异常为0，数据帧丢弃");
                                 #region 舵机PMW异常为0，数据帧丢弃
                                 for (int i = 0; i < Constants.POSITION_LENTH; i++)
@@ -356,46 +357,42 @@ namespace body_robot
                                     switch (position_pre[i])
                                     {
                                         case 0:
-                                            if (i != (int)angle.servos.FootLeft && i != (int)angle.servos.FootRight && i != (int)angle.servos.Head && i != Constants.POSITION_LENTH - 1 && i != (int)angle.servos.AnkleRight && i != (int)angle.servos.AnkleLeft && i != (int)angle.servos.KneeLeft && i != (int)angle.servos.KneeRight)
+                                            if (i != (int)angle.servos.FootLeft && i != (int)angle.servos.FootRight && i != (int)angle.servos.Head && i != Constants.POSITION_LENTH - 1 && i != (int)angle.servos.AnkleRight && i != (int)angle.servos.AnkleLeft)
                                             {
-                                                return;//非膝部踝部脚部和头部舵机  值为0，计算异常，数据帧丢弃
+                                                return;//非踝部脚部和头部舵机  值为0，计算异常，数据帧丢弃
                                             }
                                             break;
                                         case Constants.INVALID_JOINT_VALUE:
                                             return;//有舵机值异常，数据帧丢弃                                        
                                         default:
-                                            if (i == (int)angle.servos.AnkleLeft || i == (int)angle.servos.AnkleRight || i == (int)angle.servos.FootLeft || i == (int)angle.servos.FootRight || i == (int)angle.servos.KneeLeft || i == (int)angle.servos.KneeRight || i == (int)angle.servos.Head || i == (int)Constants.POSITION_LENTH)
-                                                return;
                                             break;
                                     }
                                 }
                                 #endregion
 
                                 //Console.WriteLine("算术平均滤波");
-                                //#region 算术平均滤波                       
-                                ////开始执行PWM算术平均滤波
-                                //if (speed++ < Constants.frame_count -1)//先判断，再自增
-                                //{
-                                //    positions.Add(position_pre);//把当前舵机值添加至列表
-                                //    return;//返回
-                                //}
-                                //else//采集处理了超过frame_count帧数据
-                                //{
+                                #region 算术平均滤波                       
+                                //开始执行PWM算术平均滤波
+                                if (speed++ < Constants.frame_count)//先判断，再自增
+                                {
+                                    positions.Add(position_pre);//把当前舵机值添加至列表
+                                    return;//返回
+                                }
+                                else//采集处理了超过frame_count帧数据
+                                {
 
-                                //    speed = 0;//复位计数器
-                                //    positions.Add(position_pre);//添加当前帧至列表
-                                //    position_pre = ToAngle.filter_position(positions);//执行算术平均滤波                                  
-                                //    positions.Clear();//清除列表
-                                //}
-                                //#endregion
-
-                                //Console.WriteLine("若计算的PWM值变化小于10，返回不发送");
-                                #region 若计算的PWM值变化小于10，返回不发送
-                                bool difference = true;
+                                    speed = 0;//复位计数器
+                                    positions.Add(position_pre);//添加当前帧至列表
+                                    position_pre = filter_position(positions);//执行算术平均滤波                                  
+                                    positions.Clear();//清除列表
+                                }
+                                #endregion
+                                difference = true;
                                 int diff = 0;
+                                Console.WriteLine("若计算的PWM值变化小于10，返回不发送");
+                                #region 若计算的PWM值变化小于10，返回不发送
                                 if (IsFirst)//如果是第一次进入
                                 {
-                                    Console.WriteLine("第一次进入");
                                     IsFirst = false;//设置第一次进入标志位false
                                     position = position_pre;//直接将本次计算所得数据赋给上一组数据                                    
                                     return;//返回
@@ -404,18 +401,17 @@ namespace body_robot
                                 for (int i = 0; i < position_pre.Length; i++)
                                 {
                                     diff = Math.Abs(position[i] - position_pre[i]);//计算本帧舵机PWM值和上帧的差值
-                                    if (diff > 5)//若无任何舵机变化值大于10则不发送
+                                    if (diff > 15)//若无任何舵机变化值大于10则不发送
                                         difference = false;
-                                    if (diff > 40)//变化值大于50说明计算异常，数据帧丢弃
-                                    {
+                                    if (diff > 40)//变化值大于40说明计算异常，数据帧丢弃
                                         return;
-                                    }
+                                }
+                                if (difference == false)//无变化
+                                {
+                                    difference = true;
+                                    return;//返回
                                 }
                                 position = position_pre;
-                                if (difference == true)//无变化
-                                {
-                                    return;//返回
-                                }                                
                                 #endregion
                                 Console.WriteLine("姿态检测");
                                 #region 姿态检测
@@ -449,7 +445,7 @@ namespace body_robot
                                 }
                                 #endregion
 
-                                //Console.WriteLine("PWM数据帧发送和显示");
+                                Console.WriteLine("PWM数据帧发送和显示");
                                 #region PWM数据帧发送和显示
                                 try
                                 {
@@ -486,6 +482,31 @@ namespace body_robot
             }
         }
 
+
+        /// <summary>
+        /// 舵机数据帧 算术平均滤波
+        /// </summary>
+        /// <param name="positions">舵机PWM数组list</param>
+        /// <returns>滤波后的舵机PWM数组</returns>
+        private int[] filter_position(List<int[]> positions)
+        {
+            int i, count = positions[0].Length;//获取postition数组长度
+            int[] s = new int[count];
+            foreach (var p in positions)//positions列表
+            {
+                for (i = 0; i < count; i++)
+                {
+                    s[i] += p[i];//将每个position数组的内容进行累加
+                }
+            }
+            for (i = 0; i < count; i++)//遍历s数组
+            {
+                s[i] = s[i] / positions.Count;//求平均值
+            }
+            return s;//返回s数组
+        }
+
+
         /// <summary>
         /// comboBox选择项改变事件处理函数
         /// </summary>
@@ -509,7 +530,102 @@ namespace body_robot
 
         }
 
+        ///// <summary>
+        ///// B_open按钮点击函数
+        ///// </summary>
+        ///// <param name="sender"></param>
+        ///// <param name="e"></param>
+        //private void B_open_clicked(object sender, RoutedEventArgs e)
+        //{
+        //    comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;//默认选择最后一个
+        //    if (IsOpen == true)
+        //    {
+        //        if (wifi.finish == true)
+        //        {
+        //            try
+        //            {
+        //                //deinit_peripheral();
+        //                B_open.Content = "close";
+        //                B_open.Background = Brushes.Red;
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                MessageBox.Show(ex.ToString());
+        //                IsOpen = false;
+        //            }
+        //            //comboBox_com.Items.Clear();
+        //            //String[] a = Uart.get_com();//添加串口名
+        //            //foreach (var item in a)
+        //            //{
+        //            //    comboBox_com.Items.Add(item);
+        //            //}
+        //            //comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;
 
+        //        }
+        //        else
+        //            MessageBox.Show("初始化未完成，不能操作");
+        //    }
+        //    else
+        //    {
+        //        //if (uart == null || wifi.finish == true)
+        //        {
+        //            try
+        //            {
+        //                //init_peripheral();
+        //                B_open.Content = "open";
+        //                B_open.Background = Brushes.Yellow;
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                MessageBox.Show(ex.ToString() + "\n" + IsOpen);
+        //                comboBox_com.Items.Clear();
+        //                String[] a = Uart.get_com();//添加串口名
+        //                foreach (var item in a)
+        //                {
+        //                    comboBox_com.Items.Add(item);
+        //                }
+        //                comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;
+        //                IsOpen = false;
+        //            }
+        //        }
+        //        else
+        //            MessageBox.Show("初始化未完成，不能操作");
+        //    }
+        //}
+
+        ///// <summary>
+        ///// 初始化外围设备，包括串口、wifi和kinect传感器
+        ///// </summary>
+        //public void init_peripheral()
+        //{
+        //    int baud = int.Parse(comboBox_BaudRate.SelectedValue.ToString());//选中的波特率转为int
+        //    string com = comboBox_com.SelectedValue.ToString();//选中的com口转为string
+        //    this.uart = new Uart(baud, com);//新建uart对象               
+        //    this.sensor.Open();//打开kinect传感器
+        //    wifi = new ESP8266(this.uart);//新建wifi对象
+        //    wifi.DataShow += Wifi_DataShow;//添加wifi数据回显事件处理函数
+        //    if (this.bodyFrameReader != null)//如果body数据帧阅读器存在则添加数据帧到达事件处理函数
+        //    {
+        //        this.bodyFrameReader.FrameArrived += Reader_FrameArrived;
+        //    }
+        //    wifi.initESP();//wifi初始化
+        //    IsOpen = true;
+        //}
+
+        ///// <summary>
+        ///// 外围设备释放函数 
+        ///// </summary>
+        //public void deinit_peripheral()
+        //{
+        //    if (this.sensor.IsOpen)
+        //    {
+        //        this.sensor.Close();
+        //        this.bodyFrameReader.FrameArrived -= Reader_FrameArrived;
+        //    }
+        //    wifi.disposeESP();//退出AP
+        //    uart.Uart_close();//串口关闭
+        //    IsOpen = false;
+        //}
 
     }
 }

@@ -172,10 +172,7 @@ namespace body_robot
                 {
                     ConnectClose();//触发连接关闭事件
                 }
-
-            }
-            
-
+            }            
         }
 
         /// <summary>

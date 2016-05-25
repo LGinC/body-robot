@@ -75,13 +75,18 @@ namespace body_robot
         /// <summary>
         /// 存放position数组的list
         /// </summary>
-        private System.Collections.Generic.List<int[]> positions;
+        private List<int[]> positions;
 
+        /// <summary>
+        /// 发送延时是否到 标识
+        /// </summary>
+        private bool TimeOut = true;
         /// <summary>
         /// 连接状态
         /// </summary>
         private string status;
 
+    
         /// <summary>
         /// 数据帧处理是否是第一次进入
         /// </summary>
@@ -345,7 +350,7 @@ namespace body_robot
                                 {
                                     position_pre[(int)angle.servos.HipLeft] = 60;
                                 }
-
+                                //Console.WriteLine("舵机PMW异常为0，数据帧丢弃");
                                 #region 舵机PMW异常为0，数据帧丢弃
                                 for (int i = 0; i < Constants.POSITION_LENTH; i++)
                                 {
@@ -365,7 +370,7 @@ namespace body_robot
                                 }
                                 #endregion
 
-
+                                //Console.WriteLine("算术平均滤波");
                                 #region 算术平均滤波                       
                                 //开始执行PWM算术平均滤波
                                 if (speed++ < Constants.frame_count)//先判断，再自增
@@ -384,7 +389,7 @@ namespace body_robot
                                 #endregion
                                 difference = true;
                                 int diff = 0;
-
+                                Console.WriteLine("若计算的PWM值变化小于10，返回不发送");
                                 #region 若计算的PWM值变化小于10，返回不发送
                                 if (IsFirst)//如果是第一次进入
                                 {
@@ -408,6 +413,7 @@ namespace body_robot
                                 }
                                 position = position_pre;
                                 #endregion
+                                Console.WriteLine("姿态检测");
                                 #region 姿态检测
                                 position[Constants.POSITION_LENTH - 1] = 0;//设置position数组尾部
                                 ToAngle.PoseDect(ref position);//姿态检测
@@ -439,9 +445,11 @@ namespace body_robot
                                 }
                                 #endregion
 
+                                Console.WriteLine("PWM数据帧发送和显示");
                                 #region PWM数据帧发送和显示
                                 try
                                 {
+                                    if(TimeOut)
                                     conn.Send(PWM);
                                 }
                                 catch (Exception ex)
@@ -472,8 +480,8 @@ namespace body_robot
                 }
 
             }
-            //Console.WriteLine("time:" + sw.Elapsed);
         }
+
 
         /// <summary>
         /// 舵机数据帧 算术平均滤波

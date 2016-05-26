@@ -23,20 +23,12 @@ namespace body_robot
         /// </summary>
         public const int ThighLeft_threshold = 110;//  <
 
-        /// <summary>
-        /// 左大腿蹲下阀值，小于阀值蹲下
-        /// </summary>
-        public const int ThgihtLeft_down = 65;// <
 
         /// <summary>
         /// 右大腿向前阀值， 大于阀值则做动作
         /// </summary>
         public const int ThighRight_threshold = 150;// >
 
-        /// <summary>
-        /// 右大腿蹲下阀值，大于阀值蹲下
-        /// </summary>
-        public const int ThighRight_dwon = 185;// >
 
         /// <summary>
         /// 左髋向左阀值， 大于阀值则做动作
@@ -51,12 +43,12 @@ namespace body_robot
         /// <summary>
         /// 机器人初始PWM
         /// </summary>
-        public const string init_PWM = "sb115006122133244128229023130000114000231153028103000";
-
+        public const string init_PWM = "sb115000000136000000222029120000126000225139024115000";
+                                        
         /// <summary>
         /// 发送每一帧由frame_count帧数据过滤而得
         /// </summary>
-        public const int frame_count = 10;
+        public const int frame_count = 2;
 
 
         /// <summary>

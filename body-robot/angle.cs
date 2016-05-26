@@ -17,11 +17,6 @@ namespace body_robot
         private bool IsFilterInit = false;
 
         /// <summary>
-        /// 存放knee的角度，用于计算anklePWM
-        /// </summary>
-        //private double acos_knee = 0;
-
-        /// <summary>
         /// 对所有关节结构体进行限幅滤波
         /// </summary>
         /// <param name="j">关节节点结构体</param>
@@ -427,6 +422,8 @@ namespace body_robot
                     if (Math.Abs((position[(int)servos.HipLeft] - Constants.HipLeft_threshold)) > Math.Abs((Constants.ThighLeft_threshold - position[(int)servos.ThighLeft])))//向左分量大于向前分量
                     {
                         position[Constants.POSITION_LENTH - 1] = (int)pose.walk_left;//则左行
+                        position[(int)servos.KneeLeft] = 0;
+                        position[(int)servos.KneeRight] = 0;
                         position[(int)servos.ThighLeft] = 0;
                         position[(int)servos.ThighRight] = 0;
                         position[(int)servos.HipLeft] = 0;
@@ -436,6 +433,8 @@ namespace body_robot
                     else//否则
                     {
                         position[Constants.POSITION_LENTH - 1] = (int)pose.walk_front;//前行
+                        position[(int)servos.KneeLeft] = 0;
+                        position[(int)servos.KneeRight] = 0;
                         position[(int)servos.ThighLeft] = 0;
                         position[(int)servos.ThighRight] = 0;
                         position[(int)servos.HipLeft] = 0;
@@ -455,6 +454,8 @@ namespace body_robot
                     if (Math.Abs((position[(int)servos.HipRight] - Constants.HipRight_threshold)) > Math.Abs((position[(int)servos.ThighRight]) - Constants.ThighRight_threshold))//向右分量大于向前分量
                     {
                         position[Constants.POSITION_LENTH - 1] = (int)pose.walk_right;//则右行
+                        position[(int)servos.KneeLeft] = 0;
+                        position[(int)servos.KneeRight] = 0;
                         position[(int)servos.ThighLeft] = 0;
                         position[(int)servos.ThighRight] = 0;
                         position[(int)servos.HipLeft] = 0;
@@ -464,6 +465,8 @@ namespace body_robot
                     else
                     {
                         position[Constants.POSITION_LENTH - 1] = (int)pose.walk_front;//则前行
+                        position[(int)servos.KneeLeft] = 0;
+                        position[(int)servos.KneeRight] = 0;
                         position[(int)servos.ThighLeft] = 0;
                         position[(int)servos.ThighRight] = 0;
                         position[(int)servos.HipLeft] = 0;
@@ -472,6 +475,8 @@ namespace body_robot
                     }
                 }
                 position[Constants.POSITION_LENTH - 1] = (int)pose.walk_right;//则右行
+                position[(int)servos.KneeLeft] = 0;
+                position[(int)servos.KneeRight] = 0;
                 position[(int)servos.ThighLeft] = 0;
                 position[(int)servos.ThighRight] = 0;
                 position[(int)servos.HipLeft] = 0;
@@ -481,12 +486,16 @@ namespace body_robot
             else if (position[(int)servos.ThighRight] >= Constants.ThighRight_threshold)//若右大腿大舵机大于阀值，右腿偏向前
             {
                 position[Constants.POSITION_LENTH - 1] = (int)pose.walk_front;//则前行
+                position[(int)servos.KneeLeft] = 0;
+                position[(int)servos.KneeRight] = 0;
                 position[(int)servos.ThighLeft] = 0;
                 position[(int)servos.ThighRight] = 0;
                 position[(int)servos.HipLeft] = 0;
                 position[(int)servos.HipRight] = 0;
                 return;
             }
+            position[(int)servos.KneeLeft] = 0;
+            position[(int)servos.KneeRight] = 0;
             position[(int)servos.ThighLeft] = 0;
             position[(int)servos.ThighRight] = 0;
             position[(int)servos.HipLeft] = 0;
@@ -529,7 +538,23 @@ namespace body_robot
             //position[(int)servos.AnkleLeft] += diff_r;
         }
 
+        public void CopyArray(ref int[]a, ref int[]b)
+        {
+            int c = 0;
+            foreach(int p in b)
+            {
+                a[c++] = p;
+            }
+        }
 
+        public void PrintPosition(int[] position)
+        {
+            foreach(var i in position)
+            {
+                Console.Write(" " + i);                
+            }
+            Console.Write("\n");
+        }
         /// <summary>
         /// 舵机位置枚举类型
         /// </summary>

@@ -16,16 +16,6 @@ namespace body_robot
     public partial class MainWindow : Window
     {
         #region 成员变量定义
-        ///// <summary>
-        ///// 串口对象
-        ///// </summary>
-        //private Uart uart;
-
-        ///// <summary>
-        ///// wifi模块对象
-        ///// </summary>
-        //private ESP8266 wifi;
-
         /// <summary>
         /// socket连接对象
         /// </summary>
@@ -49,7 +39,7 @@ namespace body_robot
         /// <summary>
         /// 存放PWM数组
         /// </summary>
-        private int[] position;
+        private int[] position_pre;
 
         /// <summary>
         /// bodyFram的阅读器
@@ -203,6 +193,7 @@ namespace body_robot
                     conn.connectComplete += Conn_connectComplete;//增加连接完成事件处理函数              
                     conn.OpenConnection(ip, port);//连接    
                     conn.ShowReceiveData += Conn_ShowReceiveData;//添加数据接收事件处理函数
+                    conn.ConnectClose += Conn_ConnectClose;
                     B_connect.Background = Brushes.Red;
                     B_connect.Content = "connected";
 
@@ -213,6 +204,7 @@ namespace body_robot
                     conn.CloseConnection();//断开连接
                     conn.ShowReceiveData -= Conn_ShowReceiveData;//移除处理函数
                     conn.connectComplete -= Conn_connectComplete;//移除连接完成事件处理函数
+                    conn.ConnectClose -= Conn_ConnectClose;
                     B_connect.Content = "disconnect";
                     B_connect.Background = Brushes.Yellow;
                 }
@@ -222,6 +214,11 @@ namespace body_robot
                 MessageBox.Show(ex.ToString(), "错误");
             }
 
+        }
+
+        private void Conn_ConnectClose()
+        {
+            MessageBox.Show("连接已关闭");
         }
 
         /// <summary>
@@ -287,6 +284,7 @@ namespace body_robot
         /// <param name="e"></param>
         private void Reader_FrameArrived(object sender, BodyFrameArrivedEventArgs e)
         {
+            //if(true)
             if (conn.IsConnect == true)    //待socket连接完成再进行数据处理
             {
                 using (BodyFrame b = e.FrameReference.AcquireFrame())   //获取body数据帧，using会在括号结束后自动销毁申请的数据结构
@@ -305,12 +303,12 @@ namespace body_robot
                 foreach (var item in body)  //遍历每个body
                 {
 
-                    #region 关节角度计算 
+              
                     if (item.IsTracked)    //body处于被追踪状态时处理
                     {
                         if (item.JointOrientations[JointType.Head].Orientation.Z < 2) //Z轴距离大于2不处理
                         {
-                            int[] position_pre = new int[Constants.POSITION_LENTH];   //新建PWM数组      
+                            int[] position = new int[Constants.POSITION_LENTH];   //新建PWM数组      
 
                             if (TrackID == 9)//第一次进入时trackID = 9，其他时候都不等于9
                             {
@@ -319,42 +317,35 @@ namespace body_robot
 
                             if (TrackID == item.TrackingId)   //只有当TrackID和当前ID一致时进行处理
                             {
+                                #region 关节角度计算 
                                 Stopwatch sw = new Stopwatch(); sw.Start();
                                 int c = 0;
                                 foreach (var j in item.Joints)//遍历所有关节结构体
                                 {
                                     joints[c++] = ToAngle.filter(j.Value);//过滤
                                 }
-
                                 //Console.WriteLine("State:{0}    x:{1} y:{2}", item.LeanTrackingState, item.Lean.X, item.Lean.Y);
-                                position_pre[(int)angle.servos.ShoulderRight] = ToAngle.ToPWMshoulder(joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight], joints[(int)JointType.HandRight]);
-                                position_pre[(int)angle.servos.ShoulderLeft] =  ToAngle.ToPWMshoulder(joints[(int)JointType.ShoulderLeft],  joints[(int)JointType.ElbowLeft],  joints[(int)JointType.HandLeft]);
-                                position_pre[(int)angle.servos.ElbowRight] =    ToAngle.ToPWM_elbow(  joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight]);                             
-                                position_pre[(int)angle.servos.ElbowLeft] =     ToAngle.ToPWM_elbow(  joints[(int)JointType.ShoulderLeft],  joints[(int)JointType.ElbowLeft]);
-                                position_pre[(int)angle.servos.HandRight] =     ToAngle.ToPWM_hand(   joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight], joints[(int)JointType.HandRight]);
-                                position_pre[(int)angle.servos.HandLeft] =      ToAngle.ToPWM_hand(   joints[(int)JointType.ShoulderLeft],  joints[(int)JointType.ElbowLeft],  joints[(int)JointType.HandLeft]);
-                                position_pre[(int)angle.servos.HipRight] =      ToAngle.ToPWM_hip(    joints[(int)JointType.HipRight],      joints[(int)JointType.KneeRight]);
-                                position_pre[(int)angle.servos.HipLeft] =       ToAngle.ToPWM_hip(    joints[(int)JointType.HipLeft],       joints[(int)JointType.KneeLeft]);
-                                position_pre[(int)angle.servos.ThighRight] =    ToAngle.ToPWM_thigh(  joints[(int)JointType.HipRight],      joints[(int)JointType.KneeRight]);
-                                position_pre[(int)angle.servos.ThighLeft] =     ToAngle.ToPWM_thigh(  joints[(int)JointType.HipLeft],       joints[(int)JointType.KneeLeft]);
-                                position_pre[(int)angle.servos.KneeRight] =     ToAngle.ToPWM_knee(   joints[(int)JointType.HipRight],      joints[(int)JointType.KneeRight], joints[(int)JointType.AnkleRight]);
-                                position_pre[(int)angle.servos.KneeLeft] =      ToAngle.ToPWM_knee(   joints[(int)JointType.HipLeft],       joints[(int)JointType.KneeLeft],  joints[(int)JointType.AnkleLeft]);
-                                //position_pre[(int)angle.servos.AnkleRight] =    ToAngle.ToPWM_ankle(  joints[(int)JointType.AnkleRight]);
-                                //position_pre[(int)angle.servos.AnkleLeft] =     ToAngle.ToPWM_ankle(  joints[(int)JointType.AnkleLeft]);
+                                position[(int)angle.servos.ShoulderRight] = ToAngle.ToPWMshoulder(joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight], joints[(int)JointType.HandRight]);
+                                position[(int)angle.servos.ShoulderLeft] =  ToAngle.ToPWMshoulder(joints[(int)JointType.ShoulderLeft],  joints[(int)JointType.ElbowLeft],  joints[(int)JointType.HandLeft]);
+                                position[(int)angle.servos.ElbowRight] =    ToAngle.ToPWM_elbow(  joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight]);                             
+                                position[(int)angle.servos.ElbowLeft] =     ToAngle.ToPWM_elbow(  joints[(int)JointType.ShoulderLeft],  joints[(int)JointType.ElbowLeft]);
+                                position[(int)angle.servos.HandRight] =     ToAngle.ToPWM_hand(   joints[(int)JointType.ShoulderRight], joints[(int)JointType.ElbowRight], joints[(int)JointType.HandRight]);
+                                position[(int)angle.servos.HandLeft] =      ToAngle.ToPWM_hand(   joints[(int)JointType.ShoulderLeft],  joints[(int)JointType.ElbowLeft],  joints[(int)JointType.HandLeft]);
+                                position[(int)angle.servos.HipRight] =      ToAngle.ToPWM_hip(    joints[(int)JointType.HipRight],      joints[(int)JointType.KneeRight]);
+                                position[(int)angle.servos.HipLeft] =       ToAngle.ToPWM_hip(    joints[(int)JointType.HipLeft],       joints[(int)JointType.KneeLeft]);
+                                position[(int)angle.servos.ThighRight] =    ToAngle.ToPWM_thigh(  joints[(int)JointType.HipRight],      joints[(int)JointType.KneeRight]);
+                                position[(int)angle.servos.ThighLeft] =     ToAngle.ToPWM_thigh(  joints[(int)JointType.HipLeft],       joints[(int)JointType.KneeLeft]);
+                                position[(int)angle.servos.KneeRight] =     ToAngle.ToPWM_knee(   joints[(int)JointType.HipRight],      joints[(int)JointType.KneeRight], joints[(int)JointType.AnkleRight]);
+                                position[(int)angle.servos.KneeLeft] =      ToAngle.ToPWM_knee(   joints[(int)JointType.HipLeft],       joints[(int)JointType.KneeLeft],  joints[(int)JointType.AnkleLeft]);
+                                //position[(int)angle.servos.AnkleRight] =    ToAngle.ToPWM_ankle(  joints[(int)JointType.AnkleRight]);
+                                //position[(int)angle.servos.AnkleLeft] =     ToAngle.ToPWM_ankle(  joints[(int)JointType.AnkleLeft]);
                                 #endregion
-                                if (position_pre[(int)angle.servos.HipRight] == 0)//当左右髋读取值为0时，赋默认值60
-                                {
-                                    position_pre[(int)angle.servos.HipRight] = 60;
-                                }
-                                if (position_pre[(int)angle.servos.HipLeft] == 0)
-                                {
-                                    position_pre[(int)angle.servos.HipLeft] = 60;
-                                }
-                                //Console.WriteLine("舵机PMW异常为0，数据帧丢弃");
+
                                 #region 舵机PMW异常为0，数据帧丢弃
+                                //Console.WriteLine("舵机PMW异常为0，数据帧丢弃");
                                 for (int i = 0; i < Constants.POSITION_LENTH; i++)
                                 {
-                                    switch (position_pre[i])
+                                    switch (position[i])
                                     {
                                         case 0:
                                             if (i != (int)angle.servos.FootLeft && i != (int)angle.servos.FootRight && i != (int)angle.servos.Head && i != Constants.POSITION_LENTH - 1 && i != (int)angle.servos.AnkleRight && i != (int)angle.servos.AnkleLeft)
@@ -375,46 +366,55 @@ namespace body_robot
                                 //开始执行PWM算术平均滤波
                                 if (speed++ < Constants.frame_count)//先判断，再自增
                                 {
-                                    positions.Add(position_pre);//把当前舵机值添加至列表
+                                    positions.Add(position);//把当前舵机值添加至列表
                                     return;//返回
                                 }
                                 else//采集处理了超过frame_count帧数据
                                 {
 
                                     speed = 0;//复位计数器
-                                    positions.Add(position_pre);//添加当前帧至列表
-                                    position_pre = filter_position(positions);//执行算术平均滤波                                  
+                                    positions.Add(position);//添加当前帧至列表
+                                    position = filter_position(positions);//执行算术平均滤波                                  
                                     positions.Clear();//清除列表
                                 }
                                 #endregion
                                 difference = true;
                                 int diff = 0;
-                                Console.WriteLine("若计算的PWM值变化小于10，返回不发送");
                                 #region 若计算的PWM值变化小于10，返回不发送
+                                //Console.WriteLine("若计算的PWM值变化小于10，返回不发送");
                                 if (IsFirst)//如果是第一次进入
                                 {
                                     IsFirst = false;//设置第一次进入标志位false
-                                    position = position_pre;//直接将本次计算所得数据赋给上一组数据                                    
+                                    position_pre = position;//直接将本次计算所得数据赋给上一组数据                                
                                     return;//返回
                                 }
 
-                                for (int i = 0; i < position_pre.Length; i++)
+                                for (int i = 0; i < position.Length; i++)
                                 {
-                                    diff = Math.Abs(position[i] - position_pre[i]);//计算本帧舵机PWM值和上帧的差值
-                                    if (diff > 15)//若无任何舵机变化值大于10则不发送
-                                        difference = false;
-                                    if (diff > 40)//变化值大于40说明计算异常，数据帧丢弃
+                                    diff = Math.Abs(position_pre[i] - position[i]);//计算本帧舵机PWM值和上帧的差值
+                                    if (diff > 5)//若有舵机变化值大于5，则置位difference标志
+                                    {
+                                        difference = false;                                      
+                                    }
+                                    //Console.WriteLine("diff:" + diff);
+                                    if (diff > 100)//变化值大于40说明计算异常，数据帧丢弃
+                                    {
+                                        //ToAngle.PrintPosition(position_pre);
+                                        Console.WriteLine(position_pre[i] + "  " + position);
+                                        Console.WriteLine("here is >" + ((angle.servos)i).ToString());
                                         return;
+                                    }
                                 }
-                                if (difference == false)//无变化
+                                ToAngle.CopyArray(ref position_pre, ref position);
+                                if (difference == true)//无变化
                                 {
-                                    difference = true;
+                                    Console.WriteLine("here is <");
                                     return;//返回
                                 }
-                                position = position_pre;
                                 #endregion
-                                Console.WriteLine("姿态检测");
+
                                 #region 姿态检测
+                                //Console.WriteLine("姿态检测");
                                 position[Constants.POSITION_LENTH - 1] = 0;//设置position数组尾部
                                 ToAngle.PoseDect(ref position);//姿态检测
                                 String PWM = "";
@@ -445,8 +445,9 @@ namespace body_robot
                                 }
                                 #endregion
 
-                                Console.WriteLine("PWM数据帧发送和显示");
+
                                 #region PWM数据帧发送和显示
+                                //Console.WriteLine("PWM数据帧发送和显示");
                                 try
                                 {
                                     if(TimeOut)

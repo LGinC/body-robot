@@ -39,17 +39,11 @@ namespace body_robot
         /// 右髋向右阀值，小于阀值则做动作
         /// </summary>
         public const int HipRight_threshold = 105;//   <
-
-        /// <summary>
-        /// 机器人初始PWM
-        /// </summary>
-        public const string init_PWM = "sb115000000136000000222029120000126000225139024115000";
-                                        
+                                    
         /// <summary>
         /// 发送每一帧由frame_count帧数据过滤而得
         /// </summary>
         public const int frame_count = 4;
-
 
         /// <summary>
         /// socket buffer大小
@@ -75,5 +69,10 @@ namespace body_robot
         /// 连接状态——成功
         /// </summary>
         public const string connect_success = "已连接";
+
+        public const int right_shift_threshold = 100;//<
+
+        public const int left_shift_threshold = 165;//>
+
     }
 }

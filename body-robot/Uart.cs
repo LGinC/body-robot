@@ -44,6 +44,7 @@ namespace body_robot
             Uart_open(baud, com);
         }
 
+        public Uart() { }
         /// <summary>
         /// 系统串口数据接收事件处理函数，将接收到的数据交给上层的数据接收事件处理
         /// </summary>
@@ -60,7 +61,7 @@ namespace body_robot
             {
                 Console.WriteLine(ex.ToString());
             }           
-            DataRecieve(data);//执行上层的数据接收事件，将接收到的数据传入
+            //DataRecieve(data);//执行上层的数据接收事件，将接收到的数据传入
         }
 
         /// <summary>

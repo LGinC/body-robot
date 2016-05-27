@@ -81,7 +81,7 @@ namespace body_robot
                 await Task.Delay(500);
                 u.Send("AT+CIPSTART=\"TCP\",\"192.168.4.1\",5000\r\n");//建立TCP连接，目标IP 192.168.4.1 端口5000
                 await Task.Delay(2000);
-                SendPWM(Constants.init_PWM);//发送初始PWM数据
+                //SendPWM(Constants.init_PWM);//发送初始PWM数据
                 await Task.Delay(1000);
                 DataShow("wifi模块初始化结束：\n");
                 finish = true;//wifi模块初始化标志设为true           

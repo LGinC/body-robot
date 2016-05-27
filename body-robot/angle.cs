@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using Microsoft.Kinect;
 
 namespace body_robot
@@ -15,6 +16,23 @@ namespace body_robot
         /// 缓冲池是否初始化标志
         /// </summary>
         private bool IsFilterInit = false;
+
+        /// <summary>
+        /// 机器人是否在下蹲
+        /// </summary>
+        private bool _IsSquat = false;
+
+        /// <summary>
+        /// 腿部动作发送完成事件
+        /// </summary>
+        public event Action LegSendComplete;
+
+        /// <summary>
+        /// 腿部动作处理发送事件
+        /// </summary>
+        public event System.Predicate<string> PWM_Send;
+
+        public bool IsSquat { get { return _IsSquat; } }
 
         /// <summary>
         /// 对所有关节结构体进行限幅滤波
@@ -33,7 +51,7 @@ namespace body_robot
                 if (j.TrackingState >= this.joint_filter[type].TrackingState) //传入的节点可信度大于阀值，则更新阀值，否则则将传入的节点赋值为阀值节点
                 {                                                           //当传入节点坐标与原阀值节点坐标差大于0.05则更新阀值
                     double re_x, re_y, re_z, x, y, z;
-                    re_x = joint_filter[type].Position.X;
+                    re_x = joint_filter[type].Position.X;                   //计算当前关节坐标与缓冲池对应关节坐标差值
                     re_y = joint_filter[type].Position.Y;
                     re_z = joint_filter[type].Position.Z;
                     x = j.Position.X;
@@ -42,23 +60,24 @@ namespace body_robot
                     double diff_x = x - re_x;
                     double diff_y = y - re_y;
                     double diff_z = z - re_z;
-                    if ((diff_x < 0.05 && diff_x > -0.05) || (diff_y < 0.05 && diff_y > -0.05) || (diff_y < 0.05 && diff_y > -0.05))
+                    if ((diff_x < 0.05 && diff_x > -0.05) || (diff_y < 0.05 && diff_y > -0.05) || (diff_y < 0.05 && diff_y > -0.05))//变化值小于+-0.05
                     {
-                        j = this.joint_filter[type];
+                        j = this.joint_filter[type];        //缓冲池对应关节结构体赋值给对应当前关节
                     }
                     else
                     {
-                        this.joint_filter[type] = j;
+                        this.joint_filter[type] = j;        //当前关节赋值给缓冲池对应关节
                     }
 
                 }
                 else
                 {
-                    this.joint_filter[type] = j;
+                    this.joint_filter[type] = j;            //当前关节赋值给缓冲池对应关节
                 }
             }
             return j;
         }
+
 
         ///// <summary>
         ///// 
@@ -522,36 +541,234 @@ namespace body_robot
                         s[i] = s[i] / positions.Count;
                         //Console.WriteLine("count:" + positions.Count);
                     }
-                        
+
                 }
             }
             return s;//返回s数组
         }
 
-        public void LegCount(ref int[] position)  
+        /// <summary>
+        /// 腿部姿态检测并处理
+        /// </summary>
+        /// <param name="position">舵机动作数组</param>
+        public bool LegPoseDetect(int[] position)
         {
-            //int diff_l = position[(int)servos.ThighLeft] - thight_left;
-            //int diff_r = position[(int)servos.ThighRight] - thight_right;
-            //position[(int)servos.KneeLeft] += 2 * diff_l;
-            //position[(int)servos.KneeRight] += 2 * diff_r;
-            //position[(int)servos.AnkleLeft] += diff_l;
-            //position[(int)servos.AnkleLeft] += diff_r;
+            int r = position[(int)servos.HipRight];
+            int l = position[(int)servos.HipLeft];
+            int p = position[(int)servos.ThighRight];
+            string PWM;
+            if (p >= 110 && p < 170)
+            {
+                if (_IsSquat == true)//只有当前状态为下蹲状态时才起立
+                {
+                    LegStand(position);//起立
+                    return true;
+                }
+            }
+            if (p >= 170 && p < 200) //前行
+            {
+                if(_IsSquat == false)
+                {
+                    Thread thread_send = new Thread(new ThreadStart(new Action(()=>{
+                        PWM = "0123456789p" + (int)pose.walk_front + toPWM(position) + "\r\n";
+                        PWM_Send(PWM);
+                        Console.WriteLine(PWM);
+                        Thread.Sleep(1000);
+                        LegSendComplete();
+                    })));
+                    thread_send.Start();
+                    return true;
+                }
+            }
+            if (p >= 200 && p < 250)
+            {
+                if (_IsSquat == false)//只有当前状态为站立状态时才下蹲
+                {
+                    LegSquat(position);//下蹲
+                    return true;
+                }
+            }
+            if(l > Constants.left_shift_threshold)
+            {
+                if(_IsSquat == false)
+                {
+                    Thread thread_send = new Thread(new ThreadStart(new Action(() => {
+                        PWM = "0123456789p" + (int)pose.walk_left + toPWM(position) + "\r\n";
+                        PWM_Send(PWM);
+                        Console.WriteLine(PWM);
+                        Thread.Sleep(1000);
+                        LegSendComplete();                   
+                    })));
+                    thread_send.Start();
+                    return true;
+                }
+
+            }
+            if(r < Constants.right_shift_threshold)
+            {
+                if(_IsSquat == false)
+                {
+                    Thread thread_send = new Thread(new ThreadStart(new Action(() => {
+                        PWM = "0123456789p"+ (int)pose.walk_right + toPWM(position) + "\r\n";
+                        PWM_Send(PWM);
+                        Console.WriteLine(PWM);
+                        Thread.Sleep(1000);
+                        LegSendComplete();
+                    })));
+                    thread_send.Start();
+                    return true;
+                }
+            }
+            LegSendComplete();
+            return false;
         }
 
-        public void CopyArray(ref int[]a, ref int[]b)
+        /// <summary>
+        /// 腿部起立
+        /// </summary>
+        /// <param name="position">动作数据数组</param>
+        public void LegStand(int[] position)
+        {
+            InitBottomLeg(ref position);
+            Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    position[0] += 5;
+                    position[1] -= 10;
+                    position[2] -= 5;
+                    position[3] -= 5;
+                    position[4] += 10;
+                    position[5] += 5;
+                    string PWM = toPWM(position);
+                    PWM_Send("0123456789sb" + PWM + "\r\n");
+                    if (i < 4)
+                        Thread.Sleep(400);
+                }
+                _IsSquat = false;
+                Console.WriteLine("起立中...");
+                LegSendComplete();
+            })));
+            thread_send.Start();
+        }
+
+        /// <summary>
+        /// 脚部下蹲
+        /// </summary>
+        /// <param name="position">动作数据数组</param>
+        public void LegSquat(int[] position)
+        {
+            InitLeg(ref position);
+            Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    position[0] -= 5;
+                    position[1] += 10;
+                    position[2] += 5;
+                    position[3] += 5;
+                    position[4] -= 10;
+                    position[5] -= 5;
+                    string PWM = toPWM(position);
+                    PWM_Send("0123456789sb" + PWM + "\r\n");
+                    if (i < 4)
+                        Thread.Sleep(400);
+                }
+                _IsSquat = true;
+                Console.WriteLine("下蹲中...");
+                LegSendComplete();
+            })));
+            thread_send.Start();
+        }
+
+        /// <summary>
+        /// 初始化腿部数据至站立
+        /// </summary>
+        /// <param name="position">舵机动作数组</param>
+        public void InitLeg(ref int[] position)
+        {
+
+            position[(int)servos.ThighLeft] = 145;
+            position[(int)servos.ThighRight] = 105;
+            position[(int)servos.KneeLeft] = 52;
+            position[(int)servos.KneeRight] = 189;
+            position[(int)servos.AnkleLeft] = 129;
+            position[(int)servos.AnkleRight] = 121;
+            position[(int)servos.FootLeft] = 116;
+            position[(int)servos.FootRight] = 120;
+            position[(int)servos.HipLeft] = 122;
+            position[(int)servos.HipRight] = 129;
+        }
+
+        /// <summary>
+        /// 初始化腿部数据至下蹲
+        /// </summary>
+        /// <param name="position"></param>
+        public void InitBottomLeg(ref int[] position)
+        {
+            position[(int)servos.ThighLeft] = 95;
+            position[(int)servos.ThighRight] = 155;
+            position[(int)servos.KneeLeft] = 152;
+            position[(int)servos.KneeRight] = 89;
+            position[(int)servos.AnkleLeft] = 179;
+            position[(int)servos.AnkleRight] = 71;
+            position[(int)servos.FootLeft] = 116;
+            position[(int)servos.FootRight] = 120;
+            position[(int)servos.HipLeft] = 122;
+            position[(int)servos.HipRight] = 129;
+        }
+
+        /// <summary>
+        /// 组成PWM帧
+        /// </summary>
+        /// <param name="position">舵机动作数组</param>
+        /// <returns>生成的PWM帧，若为空则帧异常</returns>
+        public string toPWM(int[] position)
+        {
+            String PWM = "";
+            for (int i = 0; i < Constants.POSITION_LENTH - 1; i++)//组成PWM数据帧
+            {
+                if (position[i] >= 0 && position[i] < 10)//1-9补两个0
+                {
+                    PWM += "00" + position[i];
+                }
+                else if (position[i] < 100 && position[i] >= 10)//10-99补一个0
+                    PWM += "0" + position[i];
+                else if (position[i] > 255 || position[i] < 0)//大于255或者小于等于0为异常
+                {
+                    Console.WriteLine("invalid value:{0} invalid PWM:{1}", PWM, position[i]);
+                    PWM = "";
+                    return null;
+                }
+                else//100 - 250不补0
+                    PWM += position[i];
+            }
+            return PWM;
+        }
+
+        /// <summary>
+        /// int数组值拷贝  
+        /// </summary>
+        /// <param name="a">源数组</param>
+        /// <param name="b">目标数组</param>
+        public void CopyArray(ref int[] a, ref int[] b)
         {
             int c = 0;
-            foreach(int p in b)
+            foreach (int p in b)
             {
                 a[c++] = p;
             }
         }
 
+        /// <summary>
+        /// 输出int数组里所有值
+        /// </summary>
+        /// <param name="position">需要输出的数组</param>
         public void PrintPosition(int[] position)
         {
-            foreach(var i in position)
+            foreach (var i in position)
             {
-                Console.Write(" " + i);                
+                Console.Write(" " + i);
             }
             Console.Write("\n");
         }

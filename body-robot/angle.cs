@@ -570,7 +570,7 @@ namespace body_robot
                 if(_IsSquat == false)
                 {
                     Thread thread_send = new Thread(new ThreadStart(new Action(()=>{
-                        PWM = "0123456789p" + (int)pose.walk_front + toPWM(position) + "\r\n";
+                        PWM = "p" + (int)pose.walk_front + toPWM(position) + "\r\n";
                         PWM_Send(PWM);
                         Console.WriteLine(PWM);
                         Thread.Sleep(1000);
@@ -593,7 +593,7 @@ namespace body_robot
                 if(_IsSquat == false)
                 {
                     Thread thread_send = new Thread(new ThreadStart(new Action(() => {
-                        PWM = "0123456789p" + (int)pose.walk_left + toPWM(position) + "\r\n";
+                        PWM = "p" + (int)pose.walk_left + toPWM(position) + "\r\n";
                         PWM_Send(PWM);
                         Console.WriteLine(PWM);
                         Thread.Sleep(1000);
@@ -609,7 +609,7 @@ namespace body_robot
                 if(_IsSquat == false)
                 {
                     Thread thread_send = new Thread(new ThreadStart(new Action(() => {
-                        PWM = "0123456789p"+ (int)pose.walk_right + toPWM(position) + "\r\n";
+                        PWM = "p"+ (int)pose.walk_right + toPWM(position) + "\r\n";
                         PWM_Send(PWM);
                         Console.WriteLine(PWM);
                         Thread.Sleep(1000);
@@ -641,7 +641,7 @@ namespace body_robot
                     position[4] += 10;
                     position[5] += 5;
                     string PWM = toPWM(position);
-                    PWM_Send("0123456789sb" + PWM + "\r\n");
+                    PWM_Send("sb" + PWM + "\r\n");
                     if (i < 4)
                         Thread.Sleep(400);
                 }
@@ -670,7 +670,7 @@ namespace body_robot
                     position[4] -= 10;
                     position[5] -= 5;
                     string PWM = toPWM(position);
-                    PWM_Send("0123456789sb" + PWM + "\r\n");
+                    PWM_Send("sb" + PWM + "\r\n");
                     if (i < 4)
                         Thread.Sleep(400);
                 }

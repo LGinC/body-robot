@@ -74,9 +74,7 @@ namespace body_robot
         /// <summary>
         /// 连接状态
         /// </summary>
-        private string status;
-
-        private Uart uart;
+        //private string status;
     
         /// <summary>
         /// 数据帧处理是否是第一次进入
@@ -88,8 +86,6 @@ namespace body_robot
         /// </summary>
         private int FrameNullCounter = 0;
 
-
-        private int HaledCount = 0;
         /// <summary>
         /// 画刷
         /// </summary>
@@ -168,16 +164,9 @@ namespace body_robot
         {
             ToAngle.PWM_Send += ToAngle_PWM_Send;
             ToAngle.LegSendComplete += ToAngle_LegSendComplete;
-            uart = new Uart();
             this.bodyFrameReader = this.sensor.BodyFrameSource.OpenReader();//打开阅读器
-      
-            if (this.bodyFrameReader != null)//如果body数据帧阅读器存在则添加数据帧到达事件处理函数
-            {
-                this.bodyFrameReader.FrameArrived += Reader_FrameArrived;
-            }
-
             freshIP();//刷新IP和控件
-            this.sensor.Open();//打开kinect传感器 
+            
         }
 
         /// <summary>
@@ -197,7 +186,7 @@ namespace body_robot
         {
             try
             {
-                uart.Send(obj);
+                conn.Send(obj);
                 return true;
             }
             catch(Exception e)
@@ -225,41 +214,51 @@ namespace body_robot
         /// <param name="e">路由事件参数</param>
         private void B_connect_clicked(object sender, RoutedEventArgs e)
         {
-            //try
-            //{
-            //    if (conn.IsConnect == false)//点击之前为断开状态，则打开连接
-            //    {
-            //        uint port;
-            //        string ip = comboBox_targetIP.SelectedItem.ToString();
-            //        if (UInt32.TryParse(TextBox_Port.Text, out port) == false)//如果TextBox_Port选择的值不能转为Uint则抛出异常
-            //        {
-            //            throw new InvalidOperationException("端口Port请输入数字");
-            //        }
-            //        conn.connectComplete += Conn_connectComplete;//增加连接完成事件处理函数              
-            //        conn.OpenConnection(ip, port);//连接    
-            //        conn.ShowReceiveData += Conn_ShowReceiveData;//添加数据接收事件处理函数
-            //        conn.ConnectClose += Conn_ConnectClose;
-            //        B_connect.Background = Brushes.Red;
-            //        B_connect.Content = "connected";
-
-            //    }
-            //    else//点击之前为连接状态，则断开连接
-            //    {
-            //        freshIP();
-            //        conn.CloseConnection();//断开连接
-            //        conn.ShowReceiveData -= Conn_ShowReceiveData;//移除处理函数
-            //        conn.connectComplete -= Conn_connectComplete;//移除连接完成事件处理函数
-            //        conn.ConnectClose -= Conn_ConnectClose;
-            //        B_connect.Content = "disconnect";
-            //        B_connect.Background = Brushes.Yellow;
-            //    }
-            //}
-            //catch (Exception ex)
-            //{
-            //    MessageBox.Show(ex.ToString(), "错误");
-            //}
-            uart.Uart_open(115200, "COM3");
-            IsOpen = true;
+            try
+            {
+                if (conn.IsConnect == false)//点击之前为断开状态，则打开连接
+                {
+                    uint port;
+                    string ip = comboBox_targetIP.SelectedItem.ToString();
+                    if (UInt32.TryParse(TextBox_Port.Text, out port) == false)//如果TextBox_Port选择的值不能转为Uint则抛出异常
+                    {
+                        throw new InvalidOperationException("端口Port请输入数字");
+                    }
+                    conn.connectComplete += Conn_connectComplete;//增加连接完成事件处理函数              
+                    conn.OpenConnection(ip, port);//连接    
+                    conn.ShowReceiveData += Conn_ShowReceiveData;//添加数据接收事件处理函数
+                    conn.ConnectClose += Conn_ConnectClose;
+                    if (this.bodyFrameReader != null)//如果body数据帧阅读器存在则添加数据帧到达事件处理函数
+                    {
+                        this.sensor.Open();
+                        this.bodyFrameReader.FrameArrived += Reader_FrameArrived;
+                    }
+                    B_connect.Background = Brushes.Red;
+                    B_connect.Content = "connected";
+                    IsOpen = true;
+                }
+                else//点击之前为连接状态，则断开连接
+                {
+                    if (this.sensor.IsOpen)
+                    {
+                        this.sensor.Close();
+                        this.bodyFrameReader.FrameArrived -= Reader_FrameArrived;
+                    }
+                    freshIP();
+                    conn.CloseConnection();//断开连接
+                    conn.ShowReceiveData -= Conn_ShowReceiveData;//移除处理函数
+                    conn.connectComplete -= Conn_connectComplete;//移除连接完成事件处理函数
+                    conn.ConnectClose -= Conn_ConnectClose;
+                    B_connect.Content = "disconnect";
+                    B_connect.Background = Brushes.Yellow;
+                    IsOpen = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString(), "错误");
+            }
+            
         }
 
         private void Conn_ConnectClose()
@@ -272,7 +271,7 @@ namespace body_robot
         /// </summary>
         private void Conn_connectComplete()
         {
-            status = Constants.connect_success;
+            //status = Constants.connect_success;
         }
 
         /// <summary>
@@ -311,8 +310,6 @@ namespace body_robot
                 this.sensor.Close();
                 this.sensor = null;
             }
-            uart.Uart_close();
-            uart.Uart_dispose();
         }
 
         /// <summary>
@@ -322,10 +319,9 @@ namespace body_robot
         /// <param name="e"></param>
         private void Reader_FrameArrived(object sender, BodyFrameArrivedEventArgs e)
         {
-            //if(HaledCount++ == 5) {
-            //    HaledCount = 0;
+
             if(IsOpen == true)
-            //if (conn.IsConnect == true)    //待socket连接完成再进行数据处理
+            if (conn.IsConnect == true)    //待socket连接完成再进行数据处理
             {
                 //IsOpen = false;
                 using (BodyFrame b = e.FrameReference.AcquireFrame())   //获取body数据帧，using会在括号结束后自动销毁申请的数据结构
@@ -500,10 +496,9 @@ namespace body_robot
                                 }
                                 try
                                 {
-                                    //if(TimeOut)
-                                    //conn.Send(PWM);
-                                    uart.Send("0000000000sb" + PWM + "\r\n");
-                                    //Console.WriteLine("PWM:" + PWM.Length);
+                                    if (TimeOut)
+                                        conn.Send("sb" + PWM + "\r\n");
+                                    Console.WriteLine("PWM:" + PWM.Length);
                                 }
                                 catch (Exception ex)
                                 {

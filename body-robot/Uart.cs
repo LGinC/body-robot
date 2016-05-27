@@ -61,7 +61,7 @@ namespace body_robot
             {
                 Console.WriteLine(ex.ToString());
             }           
-            //DataRecieve(data);//执行上层的数据接收事件，将接收到的数据传入
+            DataRecieve(data);//执行上层的数据接收事件，将接收到的数据传入
         }
 
         /// <summary>

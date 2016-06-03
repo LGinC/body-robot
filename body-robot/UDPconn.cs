@@ -9,7 +9,7 @@ public class UDPconn
     private IPEndPoint broadcast;
     public Action<string> ReceiveShow;
     private bool _IsConnected = false;
-    public bool IsCOnnected { get { return _IsConnected; } }
+    public bool IsConnected { get { return _IsConnected; } }
 
 	public UDPconn()
 	{

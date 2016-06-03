@@ -222,7 +222,7 @@ namespace body_robot
         {
             try
             {
-                if (UDPconn.IsConnected == false)//点击之前为断开状态，则打开连接
+                if (UDPconnector.IsConnected == false)//点击之前为断开状态，则打开连接
                 {
                     uint port;
                     string ip = comboBox_targetIP.SelectedItem.ToString();

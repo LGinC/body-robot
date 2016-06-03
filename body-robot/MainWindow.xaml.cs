@@ -87,6 +87,11 @@ namespace body_robot
         private int FrameNullCounter = 0;
 
         /// <summary>
+        /// UDP连接对象
+        /// </summary>
+        private UDPconn UDPconnector;
+
+        /// <summary>
         /// 画刷
         /// </summary>
         //private readonly Brush[] brushes;
@@ -121,6 +126,7 @@ namespace body_robot
             positions = new List<int[]>();
             this.sensor = KinectSensor.GetDefault();
             conn = new Connector();//新建TCP连接对象
+            UDPconnector = new UDPconn();
             // Torso躯干
             this.bones.Add(new Tuple<JointType, JointType>(JointType.Head, JointType.Neck));
             this.bones.Add(new Tuple<JointType, JointType>(JointType.Neck, JointType.SpineShoulder));
@@ -216,7 +222,7 @@ namespace body_robot
         {
             try
             {
-                if (conn.IsConnect == false)//点击之前为断开状态，则打开连接
+                if (UDPconn.IsConnected == false)//点击之前为断开状态，则打开连接
                 {
                     uint port;
                     string ip = comboBox_targetIP.SelectedItem.ToString();
@@ -224,10 +230,7 @@ namespace body_robot
                     {
                         throw new InvalidOperationException("端口Port请输入数字");
                     }
-                    conn.connectComplete += Conn_connectComplete;//增加连接完成事件处理函数              
-                    conn.OpenConnection(ip, port);//连接    
-                    conn.ShowReceiveData += Conn_ShowReceiveData;//添加数据接收事件处理函数
-                    conn.ConnectClose += Conn_ConnectClose;
+
                     if (this.bodyFrameReader != null)//如果body数据帧阅读器存在则添加数据帧到达事件处理函数
                     {
                         this.sensor.Open();
@@ -245,10 +248,7 @@ namespace body_robot
                         this.bodyFrameReader.FrameArrived -= Reader_FrameArrived;
                     }
                     freshIP();
-                    conn.CloseConnection();//断开连接
-                    conn.ShowReceiveData -= Conn_ShowReceiveData;//移除处理函数
-                    conn.connectComplete -= Conn_connectComplete;//移除连接完成事件处理函数
-                    conn.ConnectClose -= Conn_ConnectClose;
+
                     B_connect.Content = "disconnect";
                     B_connect.Background = Brushes.Yellow;
                     IsOpen = false;

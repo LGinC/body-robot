@@ -87,7 +87,7 @@
                         <ColumnDefinition></ColumnDefinition>
                         <ColumnDefinition></ColumnDefinition>
                     </Grid.ColumnDefinitions>
-                    <Label x:Name="Label_targetIP" Content="target IP"  Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"  HorizontalContentAlignment="Right" HorizontalAlignment="Right" VerticalContentAlignment="Center"/>
+                    <Label x:Name="Label_targetIP" Content="broadcast IP"  Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"  HorizontalContentAlignment="Right" HorizontalAlignment="Right" VerticalContentAlignment="Center"/>
 
                     <ComboBox x:Name="comboBox_targetIP" Grid.Row="1" Grid.Column="4" Grid.ColumnSpan="6" FontFamily="Segoe UI Semibold" Opacity="0.9" >
                         <ComboBox.Background>

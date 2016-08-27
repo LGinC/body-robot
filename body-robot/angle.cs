@@ -13,6 +13,11 @@ namespace body_robot
         public Joint[] joint_filter = new Joint[Body.JointCount];
 
         /// <summary>
+        ///手部数据，上次的状态
+        /// </summary>
+        private HandState HandState_p;
+
+        /// <summary>
         /// 缓冲池是否初始化标志
         /// </summary>
         private bool IsFilterInit = false;
@@ -591,32 +596,38 @@ namespace body_robot
             int t = position[(int)servos.ThighLeft];//左大腿舵机值
             int p = position[(int)servos.ThighRight];//右大腿舵机值
             string PWM;
-            if (hand == HandState.Closed)//石头即停止前进(手势，石头剪刀布)
+
+
+
+            if(HandState_p.Equals(""))//如果手部上次为空，即第一次进入
             {
-                if (_IsWalk == true)//正在前行
- //                   if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
-                        if (_IsSquat == false)//未下蹲
-                        {
-                            _IsWalk = false;
-                            Thread thread_send = new Thread(new ThreadStart(new Action(() =>
-                            {
-                                PWM = "p" + (char)pose.walk_stop + toPWM(position) + "\r\n";//停止前进
-                                Console.WriteLine("PWM:" + PWM.Length);
-                                PWM_Send(PWM);
-                                PWM_Send(PWM);
-                                Console.WriteLine(PWM);
-                                Thread.Sleep(1000);
-                            })));
-                            thread_send.Start();
-                            //LegSendComplete();
-  
-                            return true;
-                        }
+               HandState_p = hand;
+               return false;//返回
             }
-            if (hand == HandState.Lasso)//剪刀即一直前进
+            else if(HandState_p == HandState.Lasso && hand == HandState.Closed)//如果上次剪刀手，这次握拳，则停止前进
             {
-                if(_IsWalk == false)
- //               if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
+                if (_IsWalk == true)//正在前行                                   
+                    if (_IsSquat == false)//未下蹲
+                    {
+                        _IsWalk = false;
+                        Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+                        {
+                            PWM = "p" + (char)pose.walk_stop + toPWM(position) + "\r\n";//停止前进
+                            Console.WriteLine("PWM:" + PWM.Length);
+                            PWM_Send(PWM);
+                            PWM_Send(PWM);
+                            Console.WriteLine(PWM);
+                            Thread.Sleep(1000);
+                        })));
+                        thread_send.Start();
+                        //LegSendComplete();
+                        HandState_p = hand;
+                        return true;
+                    }
+            }
+            else if((HandState_p == HandState.Closed && hand == HandState.Lasso) || (HandState_p == HandState.Closed && hand == HandState.Lasso))//如果上次打开，这次剪刀手
+            {                                                                                                                                    //或者上次握拳，这次剪刀手，一直前进
+                if (_IsWalk == false)               
                     if (_IsSquat == false)//未下蹲
                     {
                         _IsWalk = true;
@@ -630,16 +641,64 @@ namespace body_robot
                         })));
                         thread_send.Start();
                         //LegSendComplete();
+                        HandState_p = hand;
                         return true;
                     }
-
             }
+
+
+
+            #region 上版本代码
+            //               if (hand == HandState.Closed)//石头即停止前进(手势，石头剪刀布)
+            //           {
+            //               if (_IsWalk == false)
+            //                   //               if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
+            //                   if (_IsSquat == false)//未下蹲
+            //                   {
+            //                       _IsWalk = true;
+            //                       Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+            //                       {
+            //                           PWM = "p" + (char)pose.walk_always + toPWM(position) + "\r\n";//一直前进
+            //                           Console.WriteLine("PWM:" + PWM.Length);
+            //                           PWM_Send(PWM);
+            //                           Console.WriteLine(PWM);
+            //                           Thread.Sleep(1000);
+            //                       })));
+            //                       thread_send.Start();
+            //                       //LegSendComplete();
+            //                       return true;
+            //                   }
+            //           }
+            //           if (hand == HandState.Lasso)//剪刀即一直前进
+            //           {
+            //               if(_IsWalk == false)
+            ////               if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
+            //                   if (_IsSquat == false)//未下蹲
+            //                   {
+            //                       _IsWalk = true;
+            //                       Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+            //                       {
+            //                           PWM = "p" + (char)pose.walk_always + toPWM(position) + "\r\n";//一直前进
+            //                           Console.WriteLine("PWM:" + PWM.Length);
+            //                           PWM_Send(PWM);
+            //                           Console.WriteLine(PWM);
+            //                           Thread.Sleep(1000);
+            //                       })));
+            //                       thread_send.Start();
+            //                       //LegSendComplete();
+            //                       return true;
+            //                   }
+            //           }
+            #endregion
+
+
             if (p >= 110 && p < 150)//右脚在正常站立范围
             {
                 if (_IsSquat == true)//只有当前状态为下蹲状态时才起立
                 {
                     _IsSquat = false;
                     LegStand(position);//起立
+
                     //Thread thread_send = new Thread(new ThreadStart(new Action(() =>
                     //{
                     //    PWM = "p" + (char)pose.stand_up + toPWM(position) + "\r\n";//起立
@@ -652,6 +711,7 @@ namespace body_robot
                     //LegSendComplete();
                     return true;
                 }
+                #region 上版本代码
                 //else if (_IsLiftRight == true && _IsLiftLeft == false)//当处于右抬脚状态时
                 //{
                 //    _IsLiftRight = false;
@@ -667,8 +727,9 @@ namespace body_robot
                 //    LegSendComplete();
                 //    return true;
                 //}
+                #endregion
             }
-
+            #region 上版本代码
             //if (p >= 150 && p < 170)//右抬脚
             //{
             //    if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
@@ -727,7 +788,7 @@ namespace body_robot
             //            return true;
             //        }
             //}
-
+            #endregion
             if (p >= 170 && p < 200) //前行
             {
 //                if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚

@@ -23,6 +23,21 @@ namespace body_robot
         private bool _IsSquat = false;
 
         /// <summary>
+        /// 是否左抬脚
+        /// </summary>
+        private bool _IsLiftLeft = false;
+
+        /// <summary>
+        /// 是否右抬脚
+        /// </summary>
+        private bool _IsLiftRight = false;
+
+        /// <summary>
+        /// 是否在行走
+        /// </summary>
+        private bool _IsWalk = false;
+
+        /// <summary>
         /// 腿部动作发送完成事件
         /// </summary>
         public event Action LegSendComplete;
@@ -32,7 +47,25 @@ namespace body_robot
         /// </summary>
         public event System.Predicate<string> PWM_Send;
 
-        public bool IsSquat { get { return _IsSquat; } }
+        /// <summary>
+        /// 是否蹲下
+        /// </summary>
+        public bool IsSquat { set { _IsSquat = value; } get { return _IsSquat; } }
+
+        /// <summary>
+        /// 是否左抬脚
+        /// </summary>
+        public bool IsLiftLeft { set { _IsLiftLeft = value; } get { return _IsLiftLeft; } }
+
+        /// <summary>
+        /// 是否右抬脚
+        /// </summary>
+        public bool IsLiftRight { set { _IsLiftRight = value; } get { return _IsLiftRight; } }
+
+        /// <summary>
+        /// 是否在行走
+        /// </summary>
+        public bool IsWalk { get { return _IsWalk; } }
 
         /// <summary>
         /// 对所有关节结构体进行限幅滤波
@@ -548,79 +581,294 @@ namespace body_robot
         }
 
         /// <summary>
-        /// 腿部姿态检测并处理
+        /// 姿态检测并处理
         /// </summary>
         /// <param name="position">舵机动作数组</param>
-        public bool LegPoseDetect(int[] position)
+        public bool PoseDetect(int[] position, HandState hand)
         {
-            int r = position[(int)servos.HipRight];
-            int l = position[(int)servos.HipLeft];
-            int p = position[(int)servos.ThighRight];
+            int r = position[(int)servos.HipRight];//右髋舵机值
+            int l = position[(int)servos.HipLeft];//左髋舵机值
+            int t = position[(int)servos.ThighLeft];//左大腿舵机值
+            int p = position[(int)servos.ThighRight];//右大腿舵机值
             string PWM;
-            if (p >= 110 && p < 170)
+            if (hand == HandState.Closed)//石头即停止前进(手势，石头剪刀布)
+            {
+                if (_IsWalk == true)//正在前行
+ //                   if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
+                        if (_IsSquat == false)//未下蹲
+                        {
+                            _IsWalk = false;
+                            Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+                            {
+                                PWM = "p" + (char)pose.walk_stop + toPWM(position) + "\r\n";//停止前进
+                                Console.WriteLine("PWM:" + PWM.Length);
+                                PWM_Send(PWM);
+                                PWM_Send(PWM);
+                                Console.WriteLine(PWM);
+                                Thread.Sleep(1000);
+                            })));
+                            thread_send.Start();
+                            //LegSendComplete();
+  
+                            return true;
+                        }
+            }
+            if (hand == HandState.Lasso)//剪刀即一直前进
+            {
+                if(_IsWalk == false)
+ //               if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
+                    if (_IsSquat == false)//未下蹲
+                    {
+                        _IsWalk = true;
+                        Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+                        {
+                            PWM = "p" + (char)pose.walk_always + toPWM(position) + "\r\n";//一直前进
+                            Console.WriteLine("PWM:" + PWM.Length);
+                            PWM_Send(PWM);
+                            Console.WriteLine(PWM);
+                            Thread.Sleep(1000);
+                        })));
+                        thread_send.Start();
+                        //LegSendComplete();
+                        return true;
+                    }
+
+            }
+            if (p >= 110 && p < 150)//右脚在正常站立范围
             {
                 if (_IsSquat == true)//只有当前状态为下蹲状态时才起立
                 {
+                    _IsSquat = false;
                     LegStand(position);//起立
+                    //Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+                    //{
+                    //    PWM = "p" + (char)pose.stand_up + toPWM(position) + "\r\n";//起立
+                    //    Console.WriteLine("PWM:" + PWM.Length);
+                    //    PWM_Send(PWM);
+                    //    Console.WriteLine(PWM);
+                    //    Thread.Sleep(1000);
+                    //})));
+                    //thread_send.Start();
+                    //LegSendComplete();
                     return true;
                 }
+                //else if (_IsLiftRight == true && _IsLiftLeft == false)//当处于右抬脚状态时
+                //{
+                //    _IsLiftRight = false;
+                //    Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+                //    {
+                //        PWM = "p" + (int)pose.drop_right + toPWM(position) + "\r\n";//右放脚
+                //        Console.WriteLine("PWM:" + PWM.Length);
+                //        PWM_Send(PWM);
+                //        Console.WriteLine(PWM);
+                //        Thread.Sleep(1000);
+                //    })));
+                //    thread_send.Start();
+                //    LegSendComplete();
+                //    return true;
+                //}
             }
+
+            //if (p >= 150 && p < 170)//右抬脚
+            //{
+            //    if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
+            //        if (_IsSquat == false)//未下蹲
+            //        {
+            //            _IsLiftRight = true;
+            //            Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+            //            {
+            //                PWM = "p" + (int)pose.lift_right + toPWM(position) + "\r\n";//右抬脚
+            //                Console.WriteLine("PWM:" + PWM.Length);
+            //                PWM_Send(PWM);
+            //                Console.WriteLine(PWM);
+            //                Thread.Sleep(1000);
+            //            })));
+            //            thread_send.Start();
+            //            LegSendComplete();
+            //            return true;
+            //        }
+            //}
+
+            //if (t > 110)
+            //{
+            //    if (_IsSquat == false)//未下蹲
+            //        if (_IsLiftLeft == true && _IsLiftRight == false)//当处于抬脚状态时
+            //        {
+            //            _IsLiftRight = false;
+            //            Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+            //            {
+            //                PWM = "p" + (int)pose.drop_left + toPWM(position) + "\r\n";//左放脚
+            //                Console.WriteLine("PWM:" + PWM.Length);
+            //                PWM_Send(PWM);
+            //                Console.WriteLine(PWM);
+            //                Thread.Sleep(1000);
+            //            })));
+            //            thread_send.Start();
+            //            LegSendComplete();
+            //            return true;
+            //        }
+            //}
+            //if (t <= 110 && t > 50)
+            //{
+            //    if (_IsSquat == false)//未下蹲
+            //        if (_IsLiftLeft == false && _IsLiftRight == false)//未抬脚
+            //        {
+            //            _IsLiftLeft = true;
+            //            Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+            //            {
+            //                PWM = "p" + (int)pose.lift_left + toPWM(position) + "\r\n";//左抬脚
+            //                Console.WriteLine("PWM:" + PWM.Length);
+            //                PWM_Send(PWM);
+            //                Console.WriteLine(PWM);
+            //                Thread.Sleep(1000);
+            //            })));
+            //            thread_send.Start();
+            //            LegSendComplete();
+            //            return true;
+            //        }
+            //}
+
             if (p >= 170 && p < 200) //前行
             {
-                if(_IsSquat == false)
-                {
-                    Thread thread_send = new Thread(new ThreadStart(new Action(()=>{
-                        PWM = "p" + (int)pose.walk_front + toPWM(position) + "\r\n";
-                        PWM_Send(PWM);
-                        Console.WriteLine(PWM);
-                        Thread.Sleep(1000);
-                        LegSendComplete();
-                    })));
-                    thread_send.Start();
-                    return true;
-                }
+//                if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
+                    if (_IsSquat == false)//未下蹲
+                    {
+                        
+                        Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+                        {
+                            PWM = "p" + (int)pose.walk_front + toPWM(position) + "\r\n";
+                            Console.WriteLine("PWM:" + PWM.Length);
+                            PWM_Send(PWM);
+                            Console.WriteLine(PWM);
+                            Thread.Sleep(1000);
+                        })));
+                        thread_send.Start();
+                        //LegSendComplete();
+                        return true;
+                    }
             }
+
             if (p >= 200 && p < 250)
             {
-                if (_IsSquat == false)//只有当前状态为站立状态时才下蹲
-                {
-                    LegSquat(position);//下蹲
-                    return true;
-                }
+//                if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
+                    if (_IsSquat == false)//只有当前状态为站立状态时才下蹲
+                    {
+                        LegSquat(position);//下蹲
+                        _IsSquat = true;
+                        //Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+                        //{
+                        //    PWM = "p" + (char)pose.squat + toPWM(position) + "\r\n";//起立
+                        //    Console.WriteLine("PWM:" + PWM.Length);
+                        //    PWM_Send(PWM);
+                        //    Console.WriteLine(PWM);
+                        //    Thread.Sleep(1000);
+                        //})));
+                        //thread_send.Start();
+                        //LegSendComplete();
+                        return true;
+                    }
             }
-            if(l > Constants.left_shift_threshold)
+
+
+
+            if (l > Constants.left_shift_threshold && l < Constants.left_turn_threshold)//左行一步
             {
-                if(_IsSquat == false)
-                {
-                    Thread thread_send = new Thread(new ThreadStart(new Action(() => {
-                        PWM = "p" + (int)pose.walk_left + toPWM(position) + "\r\n";
-                        PWM_Send(PWM);
-                        Console.WriteLine(PWM);
-                        Thread.Sleep(1000);
-                        LegSendComplete();                   
-                    })));
-                    thread_send.Start();
-                    return true;
-                }
+
+//                if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
+                    if (_IsSquat == false)//未下蹲
+                    {
+                        
+                        Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+                        {
+                            PWM = "p" + (int)pose.walk_left + toPWM(position) + "\r\n";
+                            Console.WriteLine("PWM:" + PWM.Length);
+                            PWM_Send(PWM);
+                            Console.WriteLine(PWM);
+                            Thread.Sleep(1000);
+                        })));
+                        thread_send.Start();
+                        //LegSendComplete();
+                        return true;
+                    }
 
             }
-            if(r < Constants.right_shift_threshold)
+            if (l > Constants.left_turn_threshold)//左转
             {
-                if(_IsSquat == false)
-                {
-                    Thread thread_send = new Thread(new ThreadStart(new Action(() => {
-                        PWM = "p"+ (int)pose.walk_right + toPWM(position) + "\r\n";
-                        PWM_Send(PWM);
-                        Console.WriteLine(PWM);
-                        Thread.Sleep(1000);
-                        LegSendComplete();
-                    })));
-                    thread_send.Start();
-                    return true;
-                }
+//                if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
+                    if (_IsSquat == false)//未下蹲
+                    {
+                        
+                        Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+                        {
+                            PWM = "p" + (int)pose.turn_left + toPWM(position) + "\r\n";
+                            Console.WriteLine("PWM:" + PWM.Length);
+                            PWM_Send(PWM);
+                            Console.WriteLine(PWM);
+                            Thread.Sleep(1000);
+                        })));
+                        thread_send.Start();
+                        //LegSendComplete();
+                        return true;
+                    }
+            }
+
+            if (r < Constants.right_shift_threshold && r > Constants.right_turn_threshold)//右行一步
+            {
+//                if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
+                    if (_IsSquat == false)//未下蹲
+                    {
+                        
+                        Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+                        {
+                            PWM = "p" + (int)pose.walk_right + toPWM(position) + "\r\n";
+                            Console.WriteLine("PWM:" + PWM.Length);
+                            PWM_Send(PWM);
+                            Console.WriteLine(PWM);
+                            Thread.Sleep(1000);
+                        })));
+                        thread_send.Start();
+                        //LegSendComplete();
+                        return true;
+                    }
+            }
+            if (r < Constants.right_turn_threshold)//右转
+            {
+  //              if (_IsLiftLeft == false && _IsLiftLeft == false)//未抬脚
+                    if (_IsSquat == false)//未下蹲
+                    {
+                        
+                        Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+                        {
+                            PWM = "p" + (char)pose.turn_right + toPWM(position) + "\r\n";
+                            Console.WriteLine("PWM:" + PWM.Length);
+                            PWM_Send(PWM);
+                            PWM_Send(PWM);
+                            Console.WriteLine(PWM);
+                            Thread.Sleep(1000);
+                        })));
+                        thread_send.Start();
+                        //LegSendComplete();
+                        return true;
+                    }
             }
             LegSendComplete();
             return false;
+        }
+
+        /// <summary>
+        /// 新建线程，在线程里发送PWM
+        /// </summary>
+        /// <param name="PWM">发送的PWM数据</param>
+        protected void ThreadSend(string PWM)
+        {
+            Thread thread_send = new Thread(new ThreadStart(new Action(() =>
+            {
+                Console.WriteLine("PWM:" + PWM.Length);
+                PWM_Send(PWM);
+                Console.WriteLine(PWM);
+                Thread.Sleep(1000);
+            })));
+            thread_send.Start();
         }
 
         /// <summary>
@@ -647,7 +895,7 @@ namespace body_robot
                 }
                 _IsSquat = false;
                 Console.WriteLine("起立中...");
-                LegSendComplete();
+                //LegSendComplete();
             })));
             thread_send.Start();
         }
@@ -676,7 +924,7 @@ namespace body_robot
                 }
                 _IsSquat = true;
                 Console.WriteLine("下蹲中...");
-                LegSendComplete();
+                //LegSendComplete();
             })));
             thread_send.Start();
         }
@@ -872,26 +1120,72 @@ namespace body_robot
             /// 无动作
             /// </summary>
             stop = 0,
+
             /// <summary>
             /// 蹲
             /// </summary>
             squat = 1,
+
             /// <summary>
             /// 左行
             /// </summary>
             walk_left = 2,
+
             /// <summary>
             /// 右行
             /// </summary>
             walk_right = 3,
+
             /// <summary>
             /// 前行
             /// </summary>
             walk_front = 4,
+
             /// <summary>
             /// 起立
             /// </summary>
-            stand_up = 5
+            stand_up = 5,
+
+            /// <summary>
+            /// 左抬脚
+            /// </summary>
+            lift_left = 6,
+
+            /// <summary>
+            /// 右抬脚
+            /// </summary>
+            lift_right = 7,
+
+            /// <summary>
+            /// 左放脚
+            /// </summary>
+            drop_left = 8,
+
+            /// <summary>
+            /// 右放脚
+            /// </summary>
+            drop_right = 9,
+
+            /// <summary>
+            /// 右转
+            /// </summary>
+            turn_right = 'r',
+
+            /// <summary>
+            /// 左转
+            /// </summary>
+            turn_left = 'l',
+
+            /// <summary>
+            /// 停止前进
+            /// </summary>
+            walk_stop = 'm',
+
+            /// <summary>
+            /// 一直向前走
+            /// </summary>
+            walk_always = 'w'
+
         }
     }
 }

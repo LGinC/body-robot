@@ -70,9 +70,27 @@ namespace body_robot
         /// </summary>
         public const string connect_success = "已连接";
 
+        /// <summary>
+        /// 右走一步阀值
+        /// </summary>
         public const int right_shift_threshold = 100;//<
 
+        /// <summary>
+        /// 右转阀值
+        /// </summary>
+        public const int right_turn_threshold = 60;
+
+        /// <summary>
+        /// 左走一步阀值
+        /// </summary>
         public const int left_shift_threshold = 165;//>
+
+        /// <summary>
+        /// 左转阀值
+        /// </summary>
+        public const int left_turn_threshold = 200;
+
+
 
     }
 }

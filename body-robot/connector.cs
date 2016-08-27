@@ -113,6 +113,7 @@ namespace body_robot
                     conn.EndConnect(ar);//结束异步连接
                     IsConnect = true;
                     connectComplete();//触发连接完成事件
+                    state.ar = ar;
                 }               
             }
             catch(Exception e)
@@ -150,9 +151,8 @@ namespace body_robot
         private void ReadCallBack(IAsyncResult ar)
         {
             string receive = string.Empty;//初始化空string
-            this.state.ar = ar;//接收异步操作赋值
             ShowReceiveData(receive);//调用数据接收事件
-            State state = (State)ar.AsyncState;//获取自定义容器对象
+            state.ar = ar;
             try
             {
                 int m_read = conn.EndReceive(ar);//结束接收
@@ -161,8 +161,7 @@ namespace body_robot
                     receive = Encoding.Default.GetString(state.buffer);//将缓冲区数据转为string
                     receive = receive.Substring(0, receive.IndexOf('\u0000'));
                     ShowReceiveData(receive);//调用数据接收事件                         
-                    conn.BeginReceive(state.buffer, 0, state.buffer.Length, 0, ReadCallBack, state);//开始异步接收
-                    state.ar = ar;
+                    conn.BeginReceive(state.buffer, 0, state.buffer.Length, 0, ReadCallBack, state);//开始异步接收                    
                 }
             }
             catch(Exception e)
